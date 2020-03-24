@@ -1,0 +1,52 @@
+/*!
+ * SASS BEM Boilerplate
+ * Based on the Block Element Modifier (BEM) Design Pattern
+ * (c) 2020 Joshua Adams
+ */
+
+@charset 'UTF-8';
+
+/* ============================== Import Modules ============================ */
+
+@import
+  'relative-folder-1/module-1',
+  'relative-folder-2/module-2';
+
+/* ================================ Variables =============================== */
+
+$base-color:    #c6538c;
+$font-stack:    Helvetica, sans-serif;
+
+/* ================================= Methods ================================ */
+
+@mixin some-method {
+  margin: 0;
+  padding: 0;
+}
+
+/* ================================= Styles ================================= */
+
+.module-block {
+
+  font: $font-stack;
+  color: $base-color;
+
+  li {
+    display: some-method();
+  }
+
+  // add styles here
+
+}
+
+.module-block__element {
+
+  // add styles here
+
+}
+
+.module-block__element--modifier {
+
+  // add styles here
+
+}

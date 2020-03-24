@@ -1,0 +1,37 @@
+{
+  "name": "esmodules-boilerplate",
+  "version": "1.0.0",
+  "description": "A template for creating modules in accordance with the es modules design pattern",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Joshua-W-Adams/esmodules-boilerplate.git"
+  },
+  "author": "Joshua Adams",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Joshua-W-Adams/esmodules-boilerplate/issues"
+  },
+  "homepage": "https://github.com/Joshua-W-Adams/esmodules-boilerplate#readme",
+  "devDependencies": {
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
+    "babel-loader": "^8.0.6",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.20.0",
+    "express": "^4.17.1",
+    "gulp": "^4.0.2",
+    "gulp-concat": "^2.6.1",
+    "gulp-eslint": "^6.0.0",
+    "gulp-minify-css": "^1.2.4",
+    "gulp-rename": "^2.0.0",
+    "gulp-sass": "^4.0.2",
+    "gulp-stylelint": "^13.0.0",
+    "stylelint": "^13.0.0",
+    "stylelint-config-recommended": "^3.0.0",
+    "webpack-stream": "^5.2.1"
+  }
+}

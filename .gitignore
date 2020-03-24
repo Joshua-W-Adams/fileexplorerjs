@@ -1,0 +1,8 @@
+# Ignore these files
+
+node_modules/
+dist/
+
+# But not these files
+
+!dist/*.txt
