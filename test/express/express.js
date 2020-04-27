@@ -95,5 +95,5 @@ function init() {
 /* =========================== Export Public APIs =========================== */
 
 module.exports = {
-  init: init
+  init
 };

@@ -61,11 +61,12 @@ const paths = {
 
 function getNodemonServer () {
   const nodemonServer = nodemon({
-    script: __dirname + '/test/express/express.js'
+    // Calls the index.js script in the root directory by default
+    // script: __dirname + '\\index.js'
     // arguments to pass to server.js
-    // , args: ['development']
+    // args: [`development`]
     // specify file types to watch in dir specified below.
-    , ext: 'js'
+    ext: 'js'
     , ignore: [
               'test/express/assets'
           ]
