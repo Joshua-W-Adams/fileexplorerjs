@@ -2,6 +2,12 @@
   "name": "fileexplorerjs",
   "version": "1.0.0",
   "description": "Creates file explorer user interface component",
+  "engines": {
+    "node": "10.x"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
   "main": "index.js",
   "repository": {
     "type": "git",

@@ -15,7 +15,8 @@ const busboy = require('connect-busboy'); //middleware for form/file upload
 
 /* ================================ Variables =============================== */
 
-// N/A
+// environment port required so heroku can assign express a port to run on
+const PORT = process.env.PORT || 80;
 
 /* ============================= Private Methods ============================ */
 
@@ -72,8 +73,8 @@ function init() {
 	// support parsing of application/x-www-form-urlencoded post data
 	app.use(bodyParser.urlencoded({ extended: true }));
   // Create http server to re-direct all HTTP traffic to HTTPS encrypted server
-  const httpServer = http.createServer(app).listen(80, function() {
-      console.log(Date() + ": Web server started at localhost:" + 80);
+  const httpServer = http.createServer(app).listen(PORT, function() {
+      console.log(Date() + ": Web server started at localhost:" + PORT);
   })
   // Configure express.js to serve static files (that dont change).
   // i.e. all files in directories specified below.
@@ -90,8 +91,6 @@ function init() {
 	app.use('/api/ftp', ftp.router);
   return httpServer;
 }
-
-init();
 
 /* =========================== Export Public APIs =========================== */
 
