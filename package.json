@@ -1,21 +1,18 @@
 {
-  "name": "esmodules-boilerplate",
+  "name": "fileexplorerjs",
   "version": "1.0.0",
-  "description": "A template for creating modules in accordance with the es modules design pattern",
+  "description": "Creates file explorer user interface component",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Joshua-W-Adams/esmodules-boilerplate.git"
+    "url": "git+https://github.com/Joshua-W-Adams/fileexplorerjs.git"
   },
   "author": "Joshua Adams",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Joshua-W-Adams/esmodules-boilerplate/issues"
+    "url": "https://github.com/Joshua-W-Adams/fileexplorerjs/issues"
   },
-  "homepage": "https://github.com/Joshua-W-Adams/esmodules-boilerplate#readme",
+  "homepage": "https://github.com/Joshua-W-Adams/fileexplorerjs#readme",
   "devDependencies": {
     "@babel/core": "^7.8.4",
     "@babel/preset-env": "^7.8.4",
@@ -33,5 +30,16 @@
     "stylelint": "^13.0.0",
     "stylelint-config-recommended": "^3.0.0",
     "webpack-stream": "^5.2.1"
+  },
+  "dependencies": {
+    "breadcrumbjs": "^1.0.2",
+    "connect-busboy": "0.0.2",
+    "contextmenuator": "^1.0.0",
+    "dragselect": "^1.13.1",
+    "gulp-nodemon": "^2.5.0",
+    "inputator": "^1.0.0",
+    "nodemon": "^2.0.3",
+    "tableator": "^1.0.0",
+    "treeator": "^1.0.1"
   }
 }

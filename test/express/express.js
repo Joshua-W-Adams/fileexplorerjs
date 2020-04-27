@@ -10,6 +10,8 @@ const http = require("http");
 const express = require("express");
 const fs = require('fs');
 const path = require('path');
+const bodyParser = require('body-parser');
+const busboy = require('connect-busboy'); //middleware for form/file upload
 
 /* ================================ Variables =============================== */
 
@@ -63,6 +65,12 @@ function _getFile(filename, filepath, res) {
 function init() {
   // Initialise / construct instance of express server
   const app = express();
+	// support parsing of binary file data (form) streams
+	app.use(busboy());
+	// support parsing of application/json type post data
+	app.use(bodyParser.json());
+	// support parsing of application/x-www-form-urlencoded post data
+	app.use(bodyParser.urlencoded({ extended: true }));
   // Create http server to re-direct all HTTP traffic to HTTPS encrypted server
   const httpServer = http.createServer(app).listen(80, function() {
       console.log(Date() + ": Web server started at localhost:" + 80);
@@ -77,8 +85,13 @@ function init() {
     // Return the requested file to the client
     _getFile(filename, filepath, res);
   })
+	// add additional apis for file system management
+	const ftp = require('./api-ftp.js');
+	app.use('/api/ftp', ftp.router);
   return httpServer;
 }
+
+init();
 
 /* =========================== Export Public APIs =========================== */
 

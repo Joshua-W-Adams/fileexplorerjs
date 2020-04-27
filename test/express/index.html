@@ -5,12 +5,96 @@
     <base href="/">
     <meta charset="utf-8">
     <!-- <link rel="stylesheet" type="text/css" href="dist/<some_css_file>.css"/> -->
+    <style>
+      body {
+        margin: 0px;
+      }
+      #fileexplorerjs-tree__search {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+      }
+      #fileexplorerjs-container {
+        height: 100vh;
+        width: 100%;
+        /* remove whitespaces */
+        font-size: 0px;
+      }
+      #fileexplorerjs-toolbar {
+        width: 100%;
+        display: inline-block;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+      }
+      #fileexplorerjs-toolbar__breadcrumb {
+        display: inline-block;
+        box-sizing: border-box;
+        width: 50%;
+        padding: 10px;
+      }
+      #fileexplorerjs-toolbar__searchContainer {
+        display: inline-block;
+        box-sizing: border-box;
+        width: 50%;
+        float: right;
+        padding: 10px;
+      }
+      #fileexplorerjs-toolbar__search {
+        width: 50%;
+        float: right;
+      }
+      #fileexplorerjs-container__splitLeft {
+        display: inline-block;
+        height: calc(100% - 128px);
+        width: 50%;
+        width: 253px;
+        border-right: 1px solid rgba(0, 0, 0, 0.125);
+        box-sizing: border-box;
+      }
+      #fileexplorerjs-container__splitRight {
+        display: inline-block;
+        float: right;
+        height: calc(100% - 128px);
+        width: calc(100% - 253px);
+        box-sizing: border-box;
+        padding: 15px;
+      }
+      #fileexplorerjs-tree__search {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      #fileexplorerjs-tree__container {
+        height: 100%;
+        box-sizing: border-box;
+        width: 252px;
+      }
+      #fileexplorerjs-table {
+        width: 100%;
+        padding: 5px;
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body spellcheck="false">
-    <div>Hello World</div>
+    <div id="fileexplorerjs-container">
+      <div id="fileexplorerjs-tree__search"></div>
+      <div id="fileexplorerjs-toolbar">
+        <div id="fileexplorerjs-toolbar__breadcrumb"></div>
+        <div id="fileexplorerjs-toolbar__searchContainer">
+          <div id="fileexplorerjs-toolbar__search"></div>
+        </div>
+      </div>
+      <div id="fileexplorerjs-container__splitLeft">
+        <div id="fileexplorerjs-tree__container">
+          <div id="tree"></div>
+        </div>
+      </div>
+      <div id="fileexplorerjs-container__splitRight">
+        <div id="fileexplorerjs-table"></div>
+      </div>
+    </div>
   </body>
 </html>
-<!-- <script defer type="module" src="src/js/module.js"></script> -->
+<script defer src="/node_modules/dragselect/dist/ds.min.js"></script>
+<script defer type="module" src="src/js/module.js"></script>
 <script type="module">
   // Some JavaScript Code
 </script>

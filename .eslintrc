@@ -20,6 +20,8 @@
     "prefer-arrow-callback": 0,
     "prefer-destructuring": 0,
     "operator-assignment": 0,
-    "no-continue": 0
+    "no-continue": 0,
+    "func-names": 0,
+    "camelcase": 0
   }
 }

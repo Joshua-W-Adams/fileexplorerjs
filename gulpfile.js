@@ -15,7 +15,12 @@ const webpack = require('webpack-stream');
 const rename = require('gulp-rename');
 const eslint = require('gulp-eslint');
 const stylelint = require('gulp-stylelint');
-const express = require('./test/express/express.js');
+const nodemon = require('gulp-nodemon');
+
+/* ================================ Variables =============================== */
+
+// define nodemon server parameters
+let nodemonServer;
 
 /* ============================= Configure Modules ========================== */
 
@@ -53,6 +58,33 @@ const paths = {
 }
 
 /* ================================== Methods =============================== */
+
+function getNodemonServer () {
+  const nodemonServer = nodemon({
+    script: __dirname + '/test/express/express.js'
+    // arguments to pass to server.js
+    // , args: ['development']
+    // specify file types to watch in dir specified below.
+    , ext: 'js'
+    , ignore: [
+              'test/express/assets'
+          ]
+    , env: {
+      'NODE_ENV': 'development'
+    }
+    // cannot accept full will paths for some reason. Must be specified
+    // relative to gulpfile.js location
+    , watch: ['test/express/**/*.*']
+  })
+  nodemonServer.on('restart', function () {
+    console.log('restarted!')
+  })
+  nodemonServer.on('crash', function() {
+    console.error('Application has crashed!\n')
+    nodemonServer.emit('restart', 5)  // restart the server in 10 seconds
+  })
+  return nodemonServer;
+}
 
 function getWebpackCnf (name) {
 	return {
@@ -212,6 +244,10 @@ gulp.task('sasslint', function (done) {
   return sassLint(arr, done);
 });
 
+gulp.task('serve', function (done) {
+	 nodemonServer = getNodemonServer();
+})
+
 /* ================================ Export Tasks ============================ */
 
 /*
@@ -219,7 +255,6 @@ gulp.task('sasslint', function (done) {
  */
 
  exports.default = function () {
-	 express.init();
    gulp.watch(paths.inputs.sass, gulp.series('sasslint', 'css-no-dep', 'css-with-dep'));
    gulp.watch(paths.inputs.js, gulp.series('jslint', 'js-no-dep', 'js-min-no-dep', 'js-with-dep', 'js-min-with-dep'));
  };

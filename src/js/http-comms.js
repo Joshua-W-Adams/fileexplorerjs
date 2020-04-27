@@ -41,16 +41,16 @@ function sendRequest(options) {
     var xhr = new XMLHttpRequest();
     xhr.open(cnf.method, cnf.url, true);
     // add additional headers to payload
-    _appendRequestHeaders(xhr, headers);
+    _appendRequestHeaders(xhr, cnf.headers);
     // send request
-    xhr.send(payload);
+    xhr.send(cnf.payload);
     // handle request reponse
     xhr.onreadystatechange = function() {
       // 4 = done
       if (xhr.readyState === 4) {
         resolve(xhr.response);
       } else {
-        reject(xhr.response);
+        // reject(xhr.response);
       }
     }
   })
