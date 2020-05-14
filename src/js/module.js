@@ -12,7 +12,7 @@ import treeator from '/node_modules/treeator/src/js/module.js';
 import tableator from '/node_modules/tableator/src/js/module.js';
 import contextmenujs from '/node_modules/contextmenuator/src/js/module.js';
 
-// import modalator from '/src/js/modalator.js';
+import modalator from '/node_modules/modalator/src/js/modalator.js';
 import httpComms from '/src/js/http-comms.js';
 
 import tests from '/src/js/tests.js';
@@ -22,6 +22,60 @@ import tests from '/src/js/tests.js';
 let fileExplorerData = [];
 
 /* ============================= Private Methods ============================ */
+
+function _displaySelectedFiles(element, elementId) {
+  // get list of files
+  // const files = this.files;
+  const files = element.files;
+  // create list to load files into
+  let fileNames = document.createElement('ol');
+  fileNames.style.listStyleType = 'none';
+  // convert files to comma separated values
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const li = document.createElement('li');
+    li.innerHTML = file.name;
+    li.style.padding = '10px 0px';
+    fileNames.appendChild(li)
+  }
+  // get element to display file list in
+  let e = document.getElementById(elementId);
+  // remove previous items
+  e.innerHTML = '';
+  // assign file list to span
+  e.appendChild(fileNames);
+}
+
+function _uploadButtonRenderer(displayElementId) {
+  // Add custom label to override default input style
+  const label = document.createElement('label');
+  label.htmlFor = 'fileUpload';
+  label.innerHTML = 'Select Files';
+  label.style.display = 'inline-block';
+
+  // add span to load list of selected documents
+  // const span = document.createElement('span');
+  // span.id = 'files-selected';
+  // label.appendChild(span);
+
+  // create input element for file selector
+  const e = document.createElement('input');
+  e.type = 'file';
+  e.multiple = 'multiple';
+  e.name = 'fileUploaded';
+  e.id = 'fileUpload';
+  e.style.display ='none';
+
+  // add function for assigning list of files on change
+  e.onchange = function () {
+    _displaySelectedFiles(e, displayElementId);
+  }
+
+  // build element object modal
+  label.appendChild(e);
+
+  return label;
+}
 
 // tests.testApis();
 
@@ -62,53 +116,97 @@ function _uploadFormOnClick(form) {
   }
 }
 
-function _uploadFormRenderer() {
-  // creeate form
-  const frag = document.createDocumentFragment();
-  const form = _addElement(frag, 'form');
-  form.id = 'the-form';
-  form.method = 'post';
-  form.action = 'api/ftp/add/file';
-  const input = _addElement(form, 'input');
-  input.type = 'file';
-  input.multiple = 'multiple';
-  input.name = 'fileUploaded';
-  const submit = _addElement(form, 'input');
-  submit.type = 'submit';
-  // prevent form refreshing the page
-  form.addEventListener('submit', _preventDefault);
-  // create ajax function for uploading files and handling responses
-  form.onsubmit = _uploadFormOnClick(form);
-  return frag;
-}
-
-function _renderModal(options) {
-  const frag = document.createDocumentFragment();
-  const modal = _addElement(frag, 'div');
-  modal.style.height = '500px';
-  modal.style.width = '500px';
-  modal.style.position = 'absolute';
-  modal.style.top = '200px';
-  modal.style.left = '200px';
-  modal.style.backgroundColor = 'gray';
-  let modalContent = options.bodyRenderer();
-  modal.appendChild(modalContent);
-  return modal;
-}
-
 function _showUploadForm() {
-  let options = {
-    bodyRenderer: _uploadFormRenderer
-  }
-  let modal = _renderModal(options);
-  const body = document.body;
-  body.appendChild(modal);
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'overlay',
+      style: function () {
+        let properties = {
+          'background':'#ccc',
+          'opacity':'0.7'
+        }
+        return properties;
+      } 
+    }, {
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        // style: 'border-bottom: none;',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Upload Files'
+          }
+        }, {
+          name: 'dialog_header_close_icon',
+          style: 'color: rgb(255,0,0);'
+        }]
+      }, {
+        name: 'dialog_body',
+        style: function () {
+          let properties = {
+            // 'color': 'black',
+            // 'display': 'none'
+          }
+          return properties;            
+        } 
+      }, {
+        name: 'dialog_footer',
+        element: {
+          value: function () {
+            const form = document.createElement('form');
+            form.onsubmit = _uploadFormOnClick(form);
+            return form;
+          }
+        },
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            element: {
+              value: function () {
+                return _uploadButtonRenderer('dialog_body');
+              }
+            },
+            style: function () {
+              let properties = {
+                'background-color': '#007bff'
+              }
+              return properties;
+            },
+            onclick: function () {},
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              value: function () {
+                const e = document.createElement('input');
+                e.type = 'submit';
+                e.value = 'Upload Files';
+                return e;
+              }
+            },
+            style: function () {
+              let properties = {       
+                'background-color': '#5a6268'
+              }
+              return properties;
+            }
+          }]
+        }]
+      }]
+    }]
+  }];
+  let modal = modalator.buildModal(config);
+  modal.show();
 }
 
 function _addFile() {
   console.log('_addFile');
   _showUploadForm();
 }
+
+_addFile();
 
 function _addFolder() {
   console.log('_addFolder');

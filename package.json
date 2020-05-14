@@ -44,6 +44,7 @@
     "express": "^4.17.1",
     "gulp-nodemon": "^2.5.0",
     "inputator": "^1.0.0",
+    "modalator": "^2.0.0",
     "nodemon": "^2.0.3",
     "tableator": "^1.0.0",
     "treeator": "^1.0.1"
