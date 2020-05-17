@@ -13,7 +13,7 @@ const Path = require('path');
 /* ================================= Settings =============================== */
 
 // set a fixed directory that users are allowed to write files to on the server
-const assetDirectory = `${__dirname}\\assets`;
+const assetDirectory = `${__dirname}/assets`;
 
 /* ================================ Variables =============================== */
 
