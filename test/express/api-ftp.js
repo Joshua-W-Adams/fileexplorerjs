@@ -169,7 +169,7 @@ router.post('/read/folder', function (req, res, next) {
       // escape user parameters
       const row = payload[i];
       const folder = _escapeFilePath(row.folder || '');
-      const fullFolderName = `${assetDirectory}\\${folder}`;
+      const fullFolderName = `${assetDirectory}/${folder}`;
       // check if folder already exists
       const exists = fs.existsSync(fullFolderName);
       if (!exists) {
