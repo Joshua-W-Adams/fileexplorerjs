@@ -19,7 +19,19 @@ import tests from '/src/js/tests.js';
 
 /* ================================ Variables =============================== */
 
+// Gloabl variable to store the file Explorer data
 let fileExplorerData = [];
+
+// Global variables to store the current navigation status of the file explorer
+// module
+let fileExplorerTable = {
+  // location of the current data displayed in the tree data model
+  treeIndex: null,
+  // table data currently displayed
+  data: null
+};
+
+let Modal;
 
 /* ============================= Private Methods ============================ */
 
@@ -79,15 +91,89 @@ function _uploadButtonRenderer(displayElementId) {
 
 // tests.testApis();
 
-function _addElement(parent, type) {
-  const element = document.createElement(type);
-  parent.appendChild(element);
-  return element;
+function _findLastChild(data, elementPosition, depth) {
+  // loop upwards (backwards) through table array
+  for (let i = elementPosition; i < data.length; i++) {
+    const row = data[i];
+    const rowDepth = row.DATA_DEPTH;
+    // sibling or parent sibling encountered
+    if (i !== elementPosition && rowDepth <= depth) {
+      let lastChildIndex = i - 1;
+      // let lastChild = data[lastChildIndex];
+      // handle case that parent has no children
+      if (i !== 1) {
+        return lastChildIndex;
+      }
+    }
+  }
 }
 
-function _preventDefault(event) {
-  event.preventDefault();
+function _updateUserInterface(changes) {
+  let records = [];
+  let tableIndex = fileExplorerTable.treeIndex;
+  let tableDepth = fileExplorerData[tableIndex].DATA_DEPTH;
+  // loop through list of changes returned by server
+  for (let i = 0; i < changes.length; i++) {
+    let change = changes[i];
+    // create record to insert into interface at appropriate locations
+    let row = {
+      // calculate depth of row to insert
+      DATA_DEPTH: tableDepth + 1,
+      NAME: change.NAME,
+      ICON_TYPE: change.ICON_TYPE,
+      SIZE: change.SIZE,
+      LAST_EDIT_DATE: change.LAST_EDIT_DATE,
+      FILE_PATH: change.FILE_PATH
+    }
+    // determine position to insert new record into tree
+    let position = _findLastChild(fileExplorerData, tableIndex, tableDepth);
+    // create change configuration for tree updates
+    records.push({
+      position: position,
+      data: row
+    });
+    // push to table data
+    // push to second last position in table so it appears above the 
+    // "add new row" placeholder
+    fileExplorerTable.data.splice(fileExplorerTable.data.length - 1, 0, row);   
+  }
+  // rebbuild table
+  _getTable(tableIndex, fileExplorerTable.data);
+  // add elements to tree and push passed updates to tree data model.
+  // fileExplorerData.splice(index, 0, details);
+  treeator.appendTreeRecords(records)
 }
+
+function _handleResponse(data) {
+  if (data) {
+    const passed = [];
+    const failed = [];
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      // handle success and failure of file operations
+      // pass of operation
+      if (row.STATUS === 'pass') {
+        // update data model with appropriate crud operation
+        passed.push(row);
+      // failure of operation
+      } else {
+        failed.push(row);
+      }
+    }
+    // regenerate file explorer view after all operations have been processed
+    if (passed.length > 0) {
+      _updateUserInterface(passed);
+    }
+    // TO DO - Inform user of failed operation
+    if (failed.length > 0) {
+
+    }
+  } else {
+    // unknown error in response from server
+    // TO DO - Inform user of failed update
+  }
+}
+  
 
 function _uploadFormOnClick(form) {
   return function() {
@@ -103,20 +189,38 @@ function _uploadFormOnClick(form) {
         // 'Content-Type': null
         directory: 'assets'
         , append: {
-          DATA_DEPTH: 1
-          , ICON_TYPE: 'file'
+          // N/A all properties are assigned server side
+          // or in response processing
         }
       }
     }
     // send ajax request to server
     httpComms.sendRequest(options).then(function(res) {
-      console.log(res);
+      let data = JSON.parse(res);
+      _handleResponse(data);
     });
     return false; // To avoid actual submission of the form
   }
 }
 
 function _showUploadForm() {
+  // destroy any existing modals
+  if (Modal) {
+    // TO DO - Add to modalator prototype
+    // Element.prototype.remove = function() {
+    //   // delete Dom element
+    //   this.parentElement.removeChild(this);
+    //   // delete object
+    //   // object is automatically removed by the garbage collector
+    //   // when there are no more references to the object
+    //   // therefore not required
+    // }
+    // get top level DOM element
+    let e =  Modal.finalConfig[0].element
+    // remove from DOM
+    e.parentElement.removeChild(e);
+    // TO DO - Add remove to prototype and change close calls to "remove" calls
+  }
   const config = [{
     name: 'modal',
     child: [{
@@ -156,6 +260,7 @@ function _showUploadForm() {
         element: {
           value: function () {
             const form = document.createElement('form');
+            form.action = '/api/ftp/add/file'
             form.onsubmit = _uploadFormOnClick(form);
             return form;
           }
@@ -191,7 +296,8 @@ function _showUploadForm() {
                 'background-color': '#5a6268'
               }
               return properties;
-            }
+            },
+            onclick: function () {}
           }]
         }]
       }]
@@ -199,37 +305,36 @@ function _showUploadForm() {
   }];
   let modal = modalator.buildModal(config);
   modal.show();
+  // store Modal in global object
+  Modal = modal;
 }
 
 function _addFile() {
-  console.log('_addFile');
   _showUploadForm();
 }
 
-_addFile();
-
 function _addFolder() {
-  console.log('_addFolder');
+
 }
 
 function _delete() {
-  console.log('_delete');
+
 }
 
 function _rename() {
-  console.log('_rename');
+
 }
 
 function _move() {
-  console.log('_move');
+
 }
 
 function _copy() {
-  console.log('_copy');
+
 }
 
 function _paste() {
-  console.log('_paste');
+
 }
 
 function _getContextMenu() {
@@ -256,8 +361,13 @@ function _getContextMenu() {
   contextmenujs.init(options);
 }
 
-function _getTable(data) {
-  // destory existing table
+function _getTable(treeIndex, data) {
+  // update global tbale data tracking
+  fileExplorerTable = {
+    treeIndex: treeIndex,
+    data: data
+  };
+  // destroy existing table
   let table = document.getElementById('fileexplorerjs-table');
   while (table.firstChild) {
     table.removeChild(table.lastChild);
@@ -269,7 +379,7 @@ function _getTable(data) {
     renderer: null,
     headers: {
       displayNames: true,
-      sourceNames: ['name', 'size', 'last_edit_date'],
+      sourceNames: ['NAME', 'SIZE', 'LAST_EDIT_DATE'],
       names: ['Name', 'Size', 'Last Edit Date'],
       widths: ['50%', '25%', '25%'],
       alignment: ["left", "center", "center"],
@@ -283,7 +393,7 @@ function _getTable(data) {
       onClick: null,
       onDblClick: function (tr, td, rowNo, rowData) {
         // find position of filePath in tree data
-        let treePos = _findPositionInTree(rowData.file_path, fileExplorerData);
+        let treePos = _findPositionInTree(rowData.FILE_PATH, fileExplorerData);
         // update tree single & double clicked row
         _updateTreeClickedItem(fileExplorerData, treePos);
         // update breadcrumb menu
@@ -292,10 +402,10 @@ function _getTable(data) {
         if (rowData.ICON_TYPE === 'folder') {
           // get all children of current row
           let children = _getChildren(fileExplorerData[treePos], treePos, fileExplorerData);
-          _getTable(children);
+          _getTable(treePos, _addEmptyRow(children, fileExplorerData[treePos].FILE_PATH));
         // download file
         } else {
-          _dummyDownload(rowData.name + ".txt","This is the content of my file :)");
+          _dummyDownload(rowData.NAME + ".txt","This is the content of my file :)");
         }
       },
       onHover: null,
@@ -308,13 +418,19 @@ function _getTable(data) {
 }
 
 function _getTree(data) {
+  // destroy existing tree
+  // TO DO - Move to treator init function
+  // let e = document.getElementById('tree');
+  // while (e.firstChild) {
+  //   e.removeChild(e.lastChild);
+  // }
   const treeOptions = {
     tree: {
       div: 'tree',
       data: data,
       renderer: null,
       columns: {
-        sourceNames: ['name'],
+        sourceNames: ['NAME'],
         newNames: ['name'],
         widths: [250],
         alignment: ['left']
@@ -362,7 +478,7 @@ function _getBreadcrumb(items) {
 
 function _reloadBreadCrumb(row, data) {
   // create breadcrumb
-  const arr = row.file_path.split('\\');
+  const arr = row.FILE_PATH.split('\\');
   let items = [];
   for (let i = 0; i < arr.length; i++) {
     const row = {
@@ -447,7 +563,6 @@ function _getTreeSearch(treeOptions) {
     onFocusOut: null,
     onHover: null,
     onKeyUp: function () {
-      console.log(treeOptions);
       treeator.searchTable('fileexplorerjs-tree__searchinput', 'treeator-tree', 'tree', treeOptions)
     },
     icon: {
@@ -482,19 +597,19 @@ function _reloadTable(matchedRow, pos, data, row) {
   if (matchedRow.ICON_TYPE === 'folder') {
     // get all children of current row
     let children = _getChildren(data[pos], pos, data);
-    _getTable(children);
+    _getTable(pos, _addEmptyRow(children, data[pos].FILE_PATH));
   } else {
     let parentPos = _findParent(row, pos, data);
     // get all children of current row
     let children = _getChildren(data[parentPos], parentPos, data);
-    _getTable(children);
+    _getTable(pos, _addEmptyRow(children, data[parentPos].FILE_PATH));
   }
 }
 
 function _findPositionInTree(filePath, data) {
   let pos;
   for (let i = 0; i < data.length; i++) {
-    if (data[i].file_path === filePath) {
+    if (data[i].FILE_PATH === filePath) {
       pos = i;
     }
   }
@@ -584,81 +699,52 @@ function _addDragSelect() {
 }
 
 function _getFileSystemData() {
-  let data = [{
-    DATA_DEPTH: 0,
-    ICON_TYPE: 'folder',
-    name: 'c:',
-    size: '',
-    last_edit_date: '2020-03-25',
-    file_path: 'c:'
-  },{
-    DATA_DEPTH: 1,
-    ICON_TYPE: 'folder',
-    name: 'assets',
-    size: '',
-    last_edit_date: '2020-03-25',
-    file_path: 'c:\\assets'
-  },{
-    DATA_DEPTH: 2,
-    ICON_TYPE: 'folder',
-    name: 'facilities',
-    size: '',
-    last_edit_date: '2020-03-25',
-    file_path: 'c:\\assets\\facilities'
-  },{
-    DATA_DEPTH: 3,
-    ICON_TYPE: 'file',
-    name: 'photo_1.jpg',
-    size: '300kB',
-    last_edit_date: '2020-03-25',
-    file_path: 'c:\\assets\\facilities\\photo_1.jpg'
-  },{
-    DATA_DEPTH: 0,
-    ICON_TYPE: 'folder',
-    name: 'd:',
-    size: '',
-    last_edit_date: '2020-03-25',
-    file_path: 'd:'
-  },{
-    DATA_DEPTH: 1,
-    ICON_TYPE: 'file',
-    name: 'photo_1.jpg',
-    size: '200kB',
-    last_edit_date: '2020-03-25',
-    file_path: 'd:\\photo_1.jpg'
-  },{
-    DATA_DEPTH: 1,
-    ICON_TYPE: 'file',
-    name: 'photo_2.jpg',
-    size: '250kB',
-    last_edit_date: '2020-03-25',
-    file_path: 'd:\\photo_2.jpg'
-  },{
-    DATA_DEPTH: 1,
-    ICON_TYPE: 'file',
-    name: 'photo_3.jpg',
-    size: '300kB',
-    last_edit_date: '2020-03-25',
-    file_path: 'd:\\photo_3.jpg'
-  }]
-  return data;
+  // define request config
+  const options = {
+    method: 'POST'
+    , url: '/api/ftp/read/folder'
+    , headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+    , payload: JSON.stringify([{
+      folder: 'client_root'
+    }])
+  }
+  // send ajax request to server
+  return httpComms.sendRequest(options);
 }
 
+function _addEmptyRow(arr, file_path) {
+  // get empty row of data to always be displayed to user
+  const row = {
+    DATA_DEPTH: '',
+    ICON_TYPE: '',
+    NAME: 'add new item',
+    SIZE: '',
+    LAST_EDIT_DATE: '',
+    FILE_PATH: file_path
+  };
+  // push row to array
+  arr.push(row);
+  return arr;
+}
 /* ============================== Public Methods ============================ */
 
 function init(options) {
   // get file system data for navigating
   // store data in global object so it can be shared between all modules
-  fileExplorerData = _getFileSystemData();
-  // construct tree view of data
-  let treeOptions = _getTree(fileExplorerData);
-  _getBreadcrumb([]);
-  _getToolbarSearch();
-  _getTreeSearch(treeOptions);
-  _getTable([]);
+  _getFileSystemData().then(function (res) {
+    let data = JSON.parse(res);
+    fileExplorerData = data[0].data;
+    // construct tree view of data
+    let treeOptions = _getTree(fileExplorerData);
+    _getBreadcrumb([]);
+    _getToolbarSearch();
+    _getTreeSearch(treeOptions);
+    _getTable(null, _addEmptyRow([], fileExplorerData[0].FILE_PATH));
+  });
 }
-
-init();
 
 /* =========================== Export Public APIs =========================== */
 

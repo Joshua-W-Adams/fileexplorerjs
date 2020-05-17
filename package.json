@@ -47,6 +47,6 @@
     "modalator": "^2.0.0",
     "nodemon": "^2.0.3",
     "tableator": "^1.0.0",
-    "treeator": "^1.0.1"
+    "treeator": "^1.1.2"
   }
 }
