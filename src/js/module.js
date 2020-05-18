@@ -142,6 +142,7 @@ function _updateUserInterface(changes) {
   }
   // rebbuild table
   _getTable(tableIndex, fileExplorerTable.data);
+  console.log(records);
   // add elements to tree and push passed updates to tree data model.
   treeator.appendTreeRecords(records);
 }
