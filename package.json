@@ -46,7 +46,7 @@
     "inputator": "^1.0.0",
     "modalator": "^2.0.0",
     "nodemon": "^2.0.3",
-    "tableator": "^1.0.0",
-    "treeator": "^1.1.2"
+    "tableator": "^1.1.0",
+    "treeator": "^1.1.3"
   }
 }

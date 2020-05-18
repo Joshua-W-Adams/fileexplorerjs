@@ -12,6 +12,9 @@ const Path = require('path');
 
 /* ================================= Settings =============================== */
 
+// TO DO - Update to allow user to write to any folder in this directory and
+// return all results in this directory. This directory should be the facility folder
+// or folders that the user has access to!
 // set a fixed directory that users are allowed to write files to on the server
 const assetDirectory = `${__dirname}/assets`;
 
@@ -33,7 +36,7 @@ function _getDateTime() {
 }
 
 function _checkFileExists(dir, file) {
-  const fullFileName = `${__dirname}/${dir}/${file}`;
+  const fullFileName = `${assetDirectory}/${dir}/${file}`;
   const exists = fs.existsSync(fullFileName);
   let newName;
   if (exists) {
@@ -84,7 +87,7 @@ var walk = function(options, done) {
       ICON_TYPE: 'folder',
       // type: 'folder',
       NAME: dirName,
-      FILE_PATH: dir.replace(strip, ''),
+      FILE_PATH: dir.replace(/\//g, '\\').replace(strip.replace(/\//g, '\\'), ''),
       // path: file.replace(strip, ''),
       SIZE: `${dirStat.size / 1000} kB`,
       LAST_EDIT_DATE: `${_msToDate(dirStat.mtimeMs)}`
@@ -131,7 +134,7 @@ var walk = function(options, done) {
               DATA_DEPTH: depth,
               ICON_TYPE: 'folder',
               NAME: list[i - 1],
-              FILE_PATH: file.replace(strip, ''),
+              FILE_PATH: file.replace(strip.replace(/\//g, '\\'), ''),
               SIZE: `${stat.size / 1000} kB`,
               LAST_EDIT_DATE: `${_msToDate(stat.mtimeMs)}`
             });
@@ -144,7 +147,7 @@ var walk = function(options, done) {
             DATA_DEPTH: depth,
             ICON_TYPE: 'file',
             NAME: list[i - 1],
-            FILE_PATH: file.replace(strip, ''),
+            FILE_PATH: file.replace(strip.replace(/\//g, '\\'), ''),
             SIZE: `${stat.size / 1000} kB`,
             LAST_EDIT_DATE: `${_msToDate(stat.mtimeMs)}`
           });
@@ -241,8 +244,8 @@ router.post('/add/file', function (req, res, next) {
     req.busboy.on('file', function (fieldname, file, filename) {
       // check if file already exists on server
       const newFilename = _checkFileExists(dir, filename);
-      const relativeFilePath = `${dir}\\${newFilename}`;
-      const fullFilePath = `${__dirname}/${dir}/${newFilename}`;
+      const relativeFilePath = `${dir}/${newFilename}`;
+      const fullFilePath = `${assetDirectory}/${dir}/${newFilename}`;
       const config = {
         file: file,
         newFilename: newFilename,
@@ -291,7 +294,7 @@ router.post('/add/folder', function (req, res, next) {
       const row = payload[i];
       const dir = _escapeFilePath(row.dir || '');
       const folder = _escapeFilePath(row.folder || '');
-      const fullFolderName = `${__dirname}\\${dir}\\${folder}`;
+      const fullFolderName = `${assetDirectory}/${dir}/${folder}`;
       // check if folder already exists
       const exists = fs.existsSync(fullFolderName);
       if (!exists) {
@@ -326,7 +329,7 @@ router.post('/delete/file', function (req, res, next) {
       const row = payload[i];
       const dir = _escapeFilePath(row.dir || '');
       const file = _escapeFilePath(row.file || '');
-      const fullFileName = `${__dirname}\\${dir}\\${file}`;
+      const fullFileName = `${assetDirectory}/${dir}/${file}`;
       // check if folder already exists
       const exists = fs.existsSync(fullFileName);
       if (exists) {
@@ -361,7 +364,7 @@ router.post('/delete/folder', function (req, res, next) {
       const row = payload[i];
       const dir = _escapeFilePath(row.dir || '');
       const folder = _escapeFilePath(row.folder || '');
-      const fullFolderName = `${__dirname}\\${dir}\\${folder}`;
+      const fullFolderName = `${assetDirectory}/${dir}/${folder}`;
       // check if folder already exists
       const exists = fs.existsSync(fullFolderName);
       if (exists) {
@@ -400,13 +403,13 @@ router.post('/update/file', function (req, res, next) {
       const old_file = _escapeFilePath(row.old_file || '');
       const new_dir = _escapeFilePath(row.new_dir || '');
       let new_file = _escapeFilePath(row.new_file || '');
-      const oldFullFileName = `${__dirname}\\${old_dir}\\${old_file}`;
+      const oldFullFileName = `${assetDirectory}/${old_dir}/${old_file}`;
       // check if folder already exists
       const exists = fs.existsSync(oldFullFileName);
       if (exists) {
         // commence renaming file
         new_file = _checkFileExists(new_dir, new_file);
-        const newFullFileName = `${__dirname}\\${new_dir}\\${new_file}`;
+        const newFullFileName = `${assetDirectory}/${new_dir}/${new_file}`;
         fs.renameSync(oldFullFileName, newFullFileName);
         row.status = 'pass';
       } else {
@@ -441,13 +444,13 @@ router.post('/update/folder', function (req, res, next) {
       const old_folder = _escapeFilePath(row.old_folder || '');
       const new_dir = _escapeFilePath(row.new_dir || '');
       let new_folder = _escapeFilePath(row.new_folder || '');
-      const oldFullFolderName = `${__dirname}\\${old_dir}\\${old_folder}`;
+      const oldFullFolderName = `${assetDirectory}/${old_dir}/${old_folder}`;
       // check if folder already exists
       const exists = fs.existsSync(oldFullFolderName);
       if (exists) {
         // commence renaming file
         new_folder = _checkFileExists(new_dir, new_folder);
-        const newFullFolderName = `${__dirname}\\${new_dir}\\${new_folder}`;
+        const newFullFolderName = `${assetDirectory}/${new_dir}/${new_folder}`;
         fs.renameSync(oldFullFolderName, newFullFolderName);
         row.status = 'pass';
       } else {

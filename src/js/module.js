@@ -104,6 +104,9 @@ function _findLastChild(data, elementPosition, depth) {
       if (i !== 1) {
         return lastChildIndex;
       }
+    // reached end of data set
+    } else if (i === data.length - 1) {
+      return i;
     }
   }
 }
@@ -129,7 +132,7 @@ function _updateUserInterface(changes) {
     let position = _findLastChild(fileExplorerData, tableIndex, tableDepth);
     // create change configuration for tree updates
     records.push({
-      position: position,
+      position: position + 1,
       data: row
     });
     // push to table data
@@ -140,8 +143,7 @@ function _updateUserInterface(changes) {
   // rebbuild table
   _getTable(tableIndex, fileExplorerTable.data);
   // add elements to tree and push passed updates to tree data model.
-  // fileExplorerData.splice(index, 0, details);
-  treeator.appendTreeRecords(records)
+  treeator.appendTreeRecords(records);
 }
 
 function _handleResponse(data) {
@@ -174,7 +176,6 @@ function _handleResponse(data) {
   }
 }
   
-
 function _uploadFormOnClick(form) {
   return function() {
     // get form data model for submission to server
@@ -187,7 +188,7 @@ function _uploadFormOnClick(form) {
       , headers: {
         // content type automatically assigned by form data
         // 'Content-Type': null
-        directory: 'assets'
+        directory: 'client_root'
         , append: {
           // N/A all properties are assigned server side
           // or in response processing
@@ -296,8 +297,7 @@ function _showUploadForm() {
                 'background-color': '#5a6268'
               }
               return properties;
-            },
-            onclick: function () {}
+            }
           }]
         }]
       }]
@@ -307,6 +307,21 @@ function _showUploadForm() {
   modal.show();
   // store Modal in global object
   Modal = modal;
+}
+
+function _downloadFile() {
+  // get state of tableator
+  let state = tableator.getState();
+  let onHoverRow = state.onHoverRow;
+  let filePath = onHoverRow.data.FILE_PATH;
+  let fileName = onHoverRow.data.NAME;
+  if (fileName && filePath) {
+    var link = document.createElement('a');
+    link.download = fileName;
+    link.href = `/test/express/assets/${filePath}`;
+    link.click();
+    link.remove();
+  }
 }
 
 function _addFile() {
@@ -347,15 +362,16 @@ function _getContextMenu() {
     'itemRenderer': null,
     // menu items and sub items
     'items': {
+      'Download': _downloadFile,
       'Add': {
-        'Folder': _addFolder,
+        // 'Folder': _addFolder,
         'File': _addFile
       },
-      'Delete' : _delete,
-      'Rename' : _rename,
-      'Move' : _move,
-      'Copy' : _copy,
-      'Paste' : _paste,
+      // 'Delete' : _delete,
+      // 'Rename' : _rename,
+      // 'Move' : _move,
+      // 'Copy' : _copy,
+      // 'Paste' : _paste,
     }
   }
   contextmenujs.init(options);
@@ -403,9 +419,8 @@ function _getTable(treeIndex, data) {
           // get all children of current row
           let children = _getChildren(fileExplorerData[treePos], treePos, fileExplorerData);
           _getTable(treePos, _addEmptyRow(children, fileExplorerData[treePos].FILE_PATH));
-        // download file
         } else {
-          _dummyDownload(rowData.NAME + ".txt","This is the content of my file :)");
+          // TO DO - Display a drawer or information panel on clicked item
         }
       },
       onHover: null,
@@ -628,16 +643,6 @@ function _getChildren(row, pos, data) {
     }
   }
   return children;
-}
-
-function _dummyDownload(filename, text) {
-  var element = document.createElement('a');
-  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-  element.setAttribute('download', filename);
-  element.style.display = 'none';
-  document.body.appendChild(element);
-  element.click();
-  document.body.removeChild(element);
 }
 
 function _findParent(row, pos, data) {
