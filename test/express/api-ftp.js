@@ -87,7 +87,7 @@ var walk = function(options, done) {
       ICON_TYPE: 'folder',
       // type: 'folder',
       NAME: dirName,
-      FILE_PATH: dir.replace(/\//g, '\\').replace(strip.replace(/\//g, '\\'), ''),
+      FILE_PATH: dir.replace(/\\/g, '/').replace(strip.replace(/\\/g, '/'), ''),
       // path: file.replace(strip, ''),
       SIZE: `${dirStat.size / 1000} kB`,
       LAST_EDIT_DATE: `${_msToDate(dirStat.mtimeMs)}`
@@ -134,7 +134,7 @@ var walk = function(options, done) {
               DATA_DEPTH: depth,
               ICON_TYPE: 'folder',
               NAME: list[i - 1],
-              FILE_PATH: file.replace(strip.replace(/\//g, '\\'), ''),
+              FILE_PATH: file.replace(/\\/g, '/').replace(strip.replace(/\\/g, '/'), ''),
               SIZE: `${stat.size / 1000} kB`,
               LAST_EDIT_DATE: `${_msToDate(stat.mtimeMs)}`
             });
@@ -147,7 +147,7 @@ var walk = function(options, done) {
             DATA_DEPTH: depth,
             ICON_TYPE: 'file',
             NAME: list[i - 1],
-            FILE_PATH: file.replace(strip.replace(/\//g, '\\'), ''),
+            FILE_PATH: file.replace(/\\/g, '/').replace(strip.replace(/\\/g, '/'), ''),
             SIZE: `${stat.size / 1000} kB`,
             LAST_EDIT_DATE: `${_msToDate(stat.mtimeMs)}`
           });

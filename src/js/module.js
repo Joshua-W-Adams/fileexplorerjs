@@ -318,7 +318,7 @@ function _downloadFile() {
   if (fileName && filePath) {
     var link = document.createElement('a');
     link.download = fileName;
-    link.href = `/test/express/assets/${filePath}`;
+    link.href = `/test/express/assets${filePath}`;
     link.click();
     link.remove();
   }
@@ -493,7 +493,7 @@ function _getBreadcrumb(items) {
 
 function _reloadBreadCrumb(row, data) {
   // create breadcrumb
-  const arr = row.FILE_PATH.split('\\');
+  const arr = row.FILE_PATH.split('/');
   let items = [];
   for (let i = 0; i < arr.length; i++) {
     const row = {
@@ -594,7 +594,7 @@ function _getBreadCrumbFilePath(li, items, position) {
     if (i === position) {
       filePath = filePath + items[i].item;
     } else {
-      filePath = filePath + items[i].item + '\\';
+      filePath = filePath + items[i].item + '/';
     }
   }
   return filePath;
