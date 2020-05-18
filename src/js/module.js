@@ -142,7 +142,6 @@ function _updateUserInterface(changes) {
   }
   // rebbuild table
   _getTable(tableIndex, fileExplorerTable.data);
-  console.log(records);
   // add elements to tree and push passed updates to tree data model.
   treeator.appendTreeRecords(records);
 }
@@ -615,7 +614,7 @@ function _reloadTable(matchedRow, pos, data, row) {
     let children = _getChildren(data[pos], pos, data);
     _getTable(pos, _addEmptyRow(children, data[pos].FILE_PATH));
   } else {
-    let parentPos = _findParent(row, pos, data);
+    let parentPos = _findParent(pos, data);
     // get all children of current row
     let children = _getChildren(data[parentPos], parentPos, data);
     _getTable(pos, _addEmptyRow(children, data[parentPos].FILE_PATH));
@@ -646,9 +645,9 @@ function _getChildren(row, pos, data) {
   return children;
 }
 
-function _findParent(row, pos, data) {
+function _findParent(pos, data) {
   for (let i = pos - 1; i > -1; i--) {
-    if (data[i].ICON_TYPE === 'folder' && data[i].DATA_DEPTH === row.DATA_DEPTH - 1) {
+    if (data[i].ICON_TYPE === 'folder' && data[i].DATA_DEPTH === data[pos].DATA_DEPTH - 1) {
       return i
     }
   }
