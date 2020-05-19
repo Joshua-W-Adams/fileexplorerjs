@@ -50,8 +50,7 @@ function _checkFileExists(dir, file) {
 function _escapeFilePath(unsafe) {
   return unsafe
     .replace(/\.\./g, '&period&period')
-    .replace(/\\/g, '&bsol')
-    .replace(/\//g, '&sol');
+    .replace(/\\/g, '&bsol');
 }
 
 function _copy(o) {
@@ -62,7 +61,7 @@ function _deleteFolderRecursive(path) {
   if (fs.existsSync(path)) {
     fs.readdirSync(path).forEach(function (file, index) {
       const curPath = Path.join(path, file);
-      if (fs.lstatSync(curPath).isDirectory()) { // recurse
+      if (fs.statSync(curPath).isDirectory()) { // recurse
         _deleteFolderRecursive(curPath);
       } else { // delete file
         fs.unlinkSync(curPath);
@@ -224,7 +223,7 @@ function _createFileWritePromise(config) {
 }
 router.post('/add/file', function (req, res, next) {
   // error handling
-  if (req.busboy && req.get('directory')) {
+  if (req.busboy) {
     // get parameters passed from user
     const dir = _escapeFilePath(req.get('directory'));
     let append = req.get('append');
@@ -300,7 +299,16 @@ router.post('/add/folder', function (req, res, next) {
       if (!exists) {
         // create directory
         fs.mkdirSync(fullFolderName, { recursive: true });
-        row.status = 'pass';
+        // get directory stats
+        let stats = fs.statSync(fullFolderName);
+        // let strip = assetDirectory;
+        // format response correctly
+        row.STATUS = 'pass';
+        row.NAME = folder;
+        row.ICON_TYPE = 'folder';
+        row.SIZE = `${stats.size / 1000} kB`;
+        row.LAST_EDIT_DATE = `${_msToDate(stats.mtimeMs)}`;
+        row.FILE_PATH = dir;
       } else {
         // do nothing
         row.status = 'fail';
@@ -335,10 +343,16 @@ router.post('/delete/file', function (req, res, next) {
       if (exists) {
         // delete file
         fs.unlinkSync(fullFileName);
-        row.status = 'pass';
+        row.STATUS = 'pass';
+        row.data = {
+          FILE_PATH: fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '')
+        }
       } else {
         // do nothing
-        row.status = 'fail';
+        row.STATUS = 'fail';
+        row.data = {
+          FILE_PATH: fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '')
+        }
       }
     }
     // Return response to user.

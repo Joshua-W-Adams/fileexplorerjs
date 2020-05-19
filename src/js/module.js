@@ -8,7 +8,9 @@
 
 import breadcrumb from '/node_modules/breadcrumbjs/src/js/module.js';
 import inputator from '/node_modules/inputator/src/js/module.js';
+// import treeator from '/repos/treeator/src/js/module.js';
 import treeator from '/node_modules/treeator/src/js/module.js';
+// import tableator from '/repos/tableator/src/js/module.js';
 import tableator from '/node_modules/tableator/src/js/module.js';
 import contextmenujs from '/node_modules/contextmenuator/src/js/module.js';
 
@@ -111,34 +113,62 @@ function _findLastChild(data, elementPosition, depth) {
   }
 }
 
-function _updateUserInterface(changes) {
+function _getAddRecord(change, tableDepth, tableIndex) {
+  // create record to insert into interface at appropriate locations
+  let row = {
+    // calculate depth of row to insert
+    DATA_DEPTH: tableDepth + 1,
+    NAME: change.NAME,
+    ICON_TYPE: change.ICON_TYPE,
+    SIZE: change.SIZE,
+    LAST_EDIT_DATE: change.LAST_EDIT_DATE,
+    FILE_PATH: change.FILE_PATH
+  }
+  // determine position to insert new record into tree
+  let position = _findLastChild(fileExplorerData, tableIndex || 0, tableDepth);
+  // create change configuration for tree updates
+  return {
+    position: position + 1,
+    data: row
+  };
+}
+
+function _getDeleteRecord(change) {
+  // determine position of item to delete
+  let position = _findPositionInTree(change.data.FILE_PATH, fileExplorerData);
+  // create change configuration for tree updates
+  return {
+    position: position,
+    // not required for deletion
+    data: null
+  };
+}
+
+function _updateUserInterface(changes, changeType) {
   let records = [];
   let tableIndex = fileExplorerTable.treeIndex;
-  let tableDepth = fileExplorerData[tableIndex].DATA_DEPTH;
+  let tableDepth = -1;
+  if (tableIndex || tableIndex === 0) {
+    tableDepth = fileExplorerData[tableIndex].DATA_DEPTH;
+  }
   // loop through list of changes returned by server
   for (let i = 0; i < changes.length; i++) {
     let change = changes[i];
-    // create record to insert into interface at appropriate locations
-    let row = {
-      // calculate depth of row to insert
-      DATA_DEPTH: tableDepth + 1,
-      NAME: change.NAME,
-      ICON_TYPE: change.ICON_TYPE,
-      SIZE: change.SIZE,
-      LAST_EDIT_DATE: change.LAST_EDIT_DATE,
-      FILE_PATH: change.FILE_PATH
+    let row;
+    if (changeType === 'add') {
+      row = _getAddRecord(change, tableDepth, tableIndex);
+      records.push(row);
+      // update table data model so that table is refreshed with correct information on rebuild
+      // push to second last position in table so it appears above the "add new row" placeholder
+      fileExplorerTable.data.splice(fileExplorerTable.data.length - 1, 0, row.data);   
+    } else if (changeType === 'delete') {
+      // row = _getDeleteRecord(change);
+      // records.push(row);
+      // // push to second last position in table so it appears above the "add new row" placeholder
+      // fileExplorerTable.data.splice(_findPositionInTree(change.data.FILE_PATH, fileExplorerTable.data), 1);
+    } else if (changeType === 'update') {
+
     }
-    // determine position to insert new record into tree
-    let position = _findLastChild(fileExplorerData, tableIndex, tableDepth);
-    // create change configuration for tree updates
-    records.push({
-      position: position + 1,
-      data: row
-    });
-    // push to table data
-    // push to second last position in table so it appears above the 
-    // "add new row" placeholder
-    fileExplorerTable.data.splice(fileExplorerTable.data.length - 1, 0, row);   
   }
   // rebbuild table
   _getTable(tableIndex, fileExplorerTable.data);
@@ -146,7 +176,7 @@ function _updateUserInterface(changes) {
   treeator.appendTreeRecords(records);
 }
 
-function _handleResponse(data) {
+function _handleResponse(data, changeType) {
   if (data) {
     const passed = [];
     const failed = [];
@@ -164,7 +194,7 @@ function _handleResponse(data) {
     }
     // regenerate file explorer view after all operations have been processed
     if (passed.length > 0) {
-      _updateUserInterface(passed);
+      _updateUserInterface(passed, changeType);
     }
     // TO DO - Inform user of failed operation
     if (failed.length > 0) {
@@ -180,6 +210,10 @@ function _uploadFormOnClick(form) {
   return function() {
     // get form data model for submission to server
     const formData = new FormData(form);
+    let dir = '';
+    if (fileExplorerTable.treeIndex || fileExplorerTable.treeIndex === 0) {
+      dir = fileExplorerData[fileExplorerTable.treeIndex].FILE_PATH;
+    }
     // define request config
     const options = {
       method: 'POST'
@@ -188,18 +222,22 @@ function _uploadFormOnClick(form) {
       , headers: {
         // content type automatically assigned by form data
         // 'Content-Type': null
-        directory: 'client_root'
+        directory: dir
         , append: {
           // N/A all properties are assigned server side
           // or in response processing
         }
       }
     }
-    // send ajax request to server
-    httpComms.sendRequest(options).then(function(res) {
-      let data = JSON.parse(res);
-      _handleResponse(data);
-    });
+    let files = document.getElementById('fileUpload').files;
+    // Only submit request to server when files have been selected by user
+    if (files.length > 0) {
+      // send ajax request to server
+      httpComms.sendRequest(options).then(function(res) {
+        let data = JSON.parse(res);
+        _handleResponse(data, 'add');
+      });
+    }
     return false; // To avoid actual submission of the form
   }
 }
@@ -309,6 +347,264 @@ function _showUploadForm() {
   Modal = modal;
 }
 
+function _addFolderOnClick(dir, folder) {
+  // define request config
+  const options = {
+    method: 'POST'
+    , url: 'api/ftp/add/folder'
+    , payload: JSON.stringify([{
+      dir: dir,
+      folder: folder
+    }])
+    , headers: {
+      // 'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  }
+  // send ajax request to server
+  httpComms.sendRequest(options).then(function(res) {
+    let data = JSON.parse(res);
+    _handleResponse(data, 'add');
+  });
+  // close modal
+  Modal.hide();
+}
+
+function _stripLastItem(filePath) {
+  let arr = filePath.split('/');
+  let stripped = '';
+  for (let i = 0; i < arr.length - 1; i++) {
+    let row = arr[i];
+    if (row && row !== '') {
+      if (stripped !== '') {
+        stripped += `/${arr[i]}`
+      } else {
+        stripped += `${arr[i]}`
+      }
+    }
+  }
+  return stripped;
+}
+
+function _deleteItemOnClick() {
+  let state = tableator.getState();
+  let onMouseDownRow = state.onMouseDownRow;
+  let item = onMouseDownRow.data;
+  // tableator must have had a hovered row assigned to attempt deletion
+  if (item) {
+    let type = item.ICON_TYPE;
+    let payload;
+    if (type === 'file') {
+      payload = [{
+        dir: _stripLastItem(item.FILE_PATH),
+        file: item.NAME
+      }];
+    } else if (type === 'folder') {
+      payload = [{
+        dir: _stripLastItem(item.FILE_PATH),
+        folder: item.NAME
+      }];
+    }
+    // define request config
+    const options = {
+      method: 'POST'
+      , url: `api/ftp/delete/${type}`
+      , payload: JSON.stringify(payload)
+      , headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+    // send ajax request to server
+    httpComms.sendRequest(options).then(function(res) {
+      let data = JSON.parse(res);
+      _handleResponse(data, 'delete');
+    });
+  }
+  // close modal
+  Modal.hide();
+}
+
+function _showAddFolderForm() {
+  // destroy any existing modals
+  if (Modal) {
+    // TO DO - Add to modalator prototype
+    // Element.prototype.remove = function() {
+    //   // delete Dom element
+    //   this.parentElement.removeChild(this);
+    //   // delete object
+    //   // object is automatically removed by the garbage collector
+    //   // when there are no more references to the object
+    //   // therefore not required
+    // }
+    // get top level DOM element
+    let e =  Modal.finalConfig[0].element
+    // remove from DOM
+    e.parentElement.removeChild(e);
+    // TO DO - Add remove to prototype and change close calls to "remove" calls
+  }
+
+  let input = document.createElement('input');
+
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'overlay' 
+    }, {
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Add Folder'
+          }
+        }]
+      }, {
+        name: 'dialog_body',
+        element: {
+          value: function () {
+            let div = document.createElement('div');
+            
+
+            function _applyRender(element, properties) {
+              const arr = Object.keys(properties);
+              for (let i = 0; i < arr.length; i++) {
+                const prop = arr[i];
+                if (typeof properties[prop] === 'object' && properties[prop] !== null) {
+                  Object.assign(element[prop], properties[prop]);
+                } else {
+                  element[prop] = properties[prop];
+                }
+              }
+              return element;
+            }
+
+            const render = {
+              style: {'font-size': '16px',
+              'font-family': 'roboto',
+              padding: '10px',
+              boxSizing: 'border-box',
+              width: '100%',
+              border: 'solid 1px rgba(0,0,0,.125)',
+              borderRadius: '3px',
+              // textIndent: '30px',
+              backgroundColor: 'rgba(241,243,244,1)'}
+              
+            }
+
+            _applyRender(input, render);
+            div.appendChild(input);
+            return div;
+          }
+        },
+        style: 'min-height:40px;' 
+      }, {
+        name: 'dialog_footer',
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            style: 'display:none;'
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              content: 'Add Folder'
+            },
+            style: 'background-color:#007bff;',
+            onclick: function () {
+              // on click operation to upload a folder
+              // get value from input
+              const folder = input.value
+              let dir = '';
+              if (fileExplorerTable.treeIndex || fileExplorerTable.treeIndex === 0) {
+                dir = fileExplorerData[fileExplorerTable.treeIndex].FILE_PATH;
+              }
+              // send value to server to writing to file system
+              _addFolderOnClick(dir, folder);
+            }
+          }]
+        }]
+      }]
+    }]
+  }];
+  let modal = modalator.buildModal(config);
+  modal.show();
+  // store Modal in global object
+  Modal = modal;
+}
+
+function _showDeleteForm() {
+  // destroy any existing modals
+  if (Modal) {
+    // TO DO - Add to modalator prototype
+    // Element.prototype.remove = function() {
+    //   // delete Dom element
+    //   this.parentElement.removeChild(this);
+    //   // delete object
+    //   // object is automatically removed by the garbage collector
+    //   // when there are no more references to the object
+    //   // therefore not required
+    // }
+    // get top level DOM element
+    let e =  Modal.finalConfig[0].element
+    // remove from DOM
+    e.parentElement.removeChild(e);
+    // TO DO - Add remove to prototype and change close calls to "remove" calls
+  }
+
+  let deleteItemName = tableator.getState().onMouseDownRow.data.NAME;
+
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'overlay' 
+    }, {
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Delete Item'
+          }
+        }]
+      }, {
+        name: 'dialog_body',
+        element: {
+          value: function () {
+            let div = document.createElement('div');
+            div.innerHTML = `Are you sure you want to delete to following item?
+              <br></br><br>${deleteItemName}</br><br></br>
+              This action is irreversible.`
+            return div;
+          }
+        },
+        style: 'min-height:40px;' 
+      }, {
+        name: 'dialog_footer',
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            style: 'display:none;'
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              content: 'Delete Item'
+            },
+            style: 'background-color:red;',
+            onclick: _deleteItemOnClick
+          }]
+        }]
+      }]
+    }]
+  }];
+  let modal = modalator.buildModal(config);
+  modal.show();
+  // store Modal in global object
+  Modal = modal;
+}
+
 function _downloadFile() {
   // get state of tableator
   let state = tableator.getState();
@@ -329,11 +625,11 @@ function _addFile() {
 }
 
 function _addFolder() {
-
+  _showAddFolderForm();
 }
 
 function _delete() {
-
+  _showDeleteForm();
 }
 
 function _rename() {
@@ -364,10 +660,10 @@ function _getContextMenu() {
     'items': {
       'Download': _downloadFile,
       'Add': {
-        // 'Folder': _addFolder,
+        'Folder': _addFolder,
         'File': _addFile
       },
-      // 'Delete' : _delete,
+      'Delete' : _delete,
       // 'Rename' : _rename,
       // 'Move' : _move,
       // 'Copy' : _copy,
@@ -626,6 +922,7 @@ function _findPositionInTree(filePath, data) {
   for (let i = 0; i < data.length; i++) {
     if (data[i].FILE_PATH === filePath) {
       pos = i;
+      return pos;
     }
   }
   return pos;

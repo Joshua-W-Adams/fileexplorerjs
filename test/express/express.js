@@ -66,12 +66,12 @@ function _getFile(filename, filepath, res) {
 function init() {
   // Initialise / construct instance of express server
   const app = express();
-	// support parsing of binary file data (form) streams
-	app.use(busboy());
-	// support parsing of application/json type post data
-	app.use(bodyParser.json());
-	// support parsing of application/x-www-form-urlencoded post data
-	app.use(bodyParser.urlencoded({ extended: true }));
+  // support parsing of binary file data (form) streams
+  app.use(busboy());
+  // support parsing of application/json type post data
+  app.use(bodyParser.json());
+  // support parsing of application/x-www-form-urlencoded post data
+  app.use(bodyParser.urlencoded({ extended: true }));
   // Create http server to re-direct all HTTP traffic to HTTPS encrypted server
   const httpServer = http.createServer(app).listen(PORT, function() {
       console.log(Date() + ': Web server started at localhost:' + PORT);
@@ -79,6 +79,8 @@ function init() {
   // Configure express.js to serve static files (that dont change).
   // i.e. all files in directories specified below.
   app.use('/', express.static(__dirname + './../../'));
+  // host data in all other repositories on local system if required in testing.
+  // app.use('/repos', express.static(__dirname + "./../../../"));
   // Root server path route
   app.get('/', function (req, res) {
     var filename = '/index.html',
