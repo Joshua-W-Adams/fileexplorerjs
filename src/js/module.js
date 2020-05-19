@@ -357,7 +357,6 @@ function _addFolderOnClick(dir, folder) {
       folder: folder
     }])
     , headers: {
-      // 'Accept': 'application/json',
       'Content-Type': 'application/json'
     }
   }
@@ -442,9 +441,7 @@ function _showAddFolderForm() {
     e.parentElement.removeChild(e);
     // TO DO - Add remove to prototype and change close calls to "remove" calls
   }
-
   let input = document.createElement('input');
-
   const config = [{
     name: 'modal',
     child: [{
@@ -464,8 +461,6 @@ function _showAddFolderForm() {
         element: {
           value: function () {
             let div = document.createElement('div');
-            
-
             function _applyRender(element, properties) {
               const arr = Object.keys(properties);
               for (let i = 0; i < arr.length; i++) {
@@ -478,7 +473,6 @@ function _showAddFolderForm() {
               }
               return element;
             }
-
             const render = {
               style: {'font-size': '16px',
               'font-family': 'roboto',
@@ -487,11 +481,8 @@ function _showAddFolderForm() {
               width: '100%',
               border: 'solid 1px rgba(0,0,0,.125)',
               borderRadius: '3px',
-              // textIndent: '30px',
               backgroundColor: 'rgba(241,243,244,1)'}
-              
             }
-
             _applyRender(input, render);
             div.appendChild(input);
             return div;
@@ -551,9 +542,7 @@ function _showDeleteForm() {
     e.parentElement.removeChild(e);
     // TO DO - Add remove to prototype and change close calls to "remove" calls
   }
-
   let deleteItemName = tableator.getState().onMouseDownRow.data.NAME;
-
   const config = [{
     name: 'modal',
     child: [{
