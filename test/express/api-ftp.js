@@ -176,7 +176,7 @@ router.post('/read/folder', function (req, res, next) {
       const exists = fs.existsSync(fullFolderName);
       if (!exists) {
         // no directory exists
-        row.status = 'fail';
+        row.STATUS = 'fail';
         // Return response to user.
         res.end(JSON.stringify(payload));
       } else {
@@ -187,7 +187,7 @@ router.post('/read/folder', function (req, res, next) {
           // save to response
           row.data = data;
           // inform user of success
-          row.status = 'pass';
+          row.STATUS = 'pass';
           // Return response to user.
           res.end(JSON.stringify(payload));
         });
@@ -308,10 +308,10 @@ router.post('/add/folder', function (req, res, next) {
         row.ICON_TYPE = 'folder';
         row.SIZE = `${stats.size / 1000} kB`;
         row.LAST_EDIT_DATE = `${_msToDate(stats.mtimeMs)}`;
-        row.FILE_PATH = dir;
+        row.FILE_PATH = `${dir}/${folder}`;
       } else {
         // do nothing
-        row.status = 'fail';
+        row.STATUS = 'fail';
       }
     }
     // Return response to user.
@@ -344,15 +344,11 @@ router.post('/delete/file', function (req, res, next) {
         // delete file
         fs.unlinkSync(fullFileName);
         row.STATUS = 'pass';
-        row.data = {
-          FILE_PATH: fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '')
-        }
+        row.FILE_PATH = fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '');
       } else {
         // do nothing
         row.STATUS = 'fail';
-        row.data = {
-          FILE_PATH: fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '')
-        }
+        row.FILE_PATH = fullFileName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '');
       }
     }
     // Return response to user.
@@ -384,10 +380,12 @@ router.post('/delete/folder', function (req, res, next) {
       if (exists) {
         // delete folder
         _deleteFolderRecursive(fullFolderName);
-        row.status = 'pass';
+        row.STATUS = 'pass';
+        row.FILE_PATH = fullFolderName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '');
       } else {
         // do nothing
-        row.status = 'fail';
+        row.STATUS = 'fail';
+        row.FILE_PATH = fullFolderName.replace(/\\/g, '/').replace(assetDirectory.replace(/\\/g, '/'), '');
       }
     }
     // Return response to user.
@@ -425,10 +423,10 @@ router.post('/update/file', function (req, res, next) {
         new_file = _checkFileExists(new_dir, new_file);
         const newFullFileName = `${assetDirectory}/${new_dir}/${new_file}`;
         fs.renameSync(oldFullFileName, newFullFileName);
-        row.status = 'pass';
+        row.STATUS = 'pass';
       } else {
         // do nothing
-        row.status = 'fail';
+        row.STATUS = 'fail';
       }
     }
     // Return response to user.
@@ -466,10 +464,10 @@ router.post('/update/folder', function (req, res, next) {
         new_folder = _checkFileExists(new_dir, new_folder);
         const newFullFolderName = `${assetDirectory}/${new_dir}/${new_folder}`;
         fs.renameSync(oldFullFolderName, newFullFolderName);
-        row.status = 'pass';
+        row.STATUS = 'pass';
       } else {
         // do nothing
-        row.status = 'fail';
+        row.STATUS = 'fail';
       }
     }
     // Return response to user.

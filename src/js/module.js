@@ -135,7 +135,7 @@ function _getAddRecord(change, tableDepth, tableIndex) {
 
 function _getDeleteRecord(change) {
   // determine position of item to delete
-  let position = _findPositionInTree(change.data.FILE_PATH, fileExplorerData);
+  let position = _findPositionInTree(change.FILE_PATH, fileExplorerData);
   // create change configuration for tree updates
   return {
     position: position,
@@ -162,18 +162,25 @@ function _updateUserInterface(changes, changeType) {
       // push to second last position in table so it appears above the "add new row" placeholder
       fileExplorerTable.data.splice(fileExplorerTable.data.length - 1, 0, row.data);   
     } else if (changeType === 'delete') {
-      // row = _getDeleteRecord(change);
-      // records.push(row);
-      // // push to second last position in table so it appears above the "add new row" placeholder
-      // fileExplorerTable.data.splice(_findPositionInTree(change.data.FILE_PATH, fileExplorerTable.data), 1);
+      row = _getDeleteRecord(change);
+      records.push(row);
+      // find position of record in folder view
+      const index = _findPositionInTree(change.FILE_PATH, fileExplorerTable.data);
+      // remove record from index in folder view
+      fileExplorerTable.data.splice(index, 1);
     } else if (changeType === 'update') {
-
+      // TODO
     }
   }
   // rebbuild table
   _getTable(tableIndex, fileExplorerTable.data);
-  // add elements to tree and push passed updates to tree data model.
-  treeator.appendTreeRecords(records);
+  if (changeType === 'add') {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.appendTreeRecords(records);
+  } else if (changeType === 'delete') {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.removeTreeRecords(records);
+  }
 }
 
 function _handleResponse(data, changeType) {
@@ -714,7 +721,7 @@ function _getTable(treeIndex, data) {
   }
   tableator.init(options);
   _getContextMenu();
-  _addDragSelect();
+  // _addDragSelect();
 }
 
 function _getTree(data) {
@@ -978,16 +985,16 @@ function _searchDirectory() {
   }
 }
 
-function _addDragSelect() {
-  const ds = new DragSelect({ // eslint-disable-line no-undef
-    selectables: document.getElementsByClassName('table-table__row'),
-    area: document.getElementById('fileexplorerjs-table'),
-    callback: function cb(elements) { // eslint-disable-line no-unused-vars
-      // do something
-    }
-  });
-  return ds;
-}
+// function _addDragSelect() {
+//   const ds = new DragSelect({ // eslint-disable-line no-undef
+//     selectables: document.getElementsByClassName('table-table__row'),
+//     area: document.getElementById('fileexplorerjs-table'),
+//     callback: function cb(elements) { // eslint-disable-line no-unused-vars
+//       // do something
+//     }
+//   });
+//   return ds;
+// }
 
 function _getFileSystemData() {
   // define request config
