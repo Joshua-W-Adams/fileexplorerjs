@@ -30,7 +30,6 @@
         padding: 10px;
       }
       #fileexplorerjs-toolbar__searchContainer {
-        display: inline-block;
         box-sizing: border-box;
         width: 50%;
         float: right;
@@ -49,7 +48,6 @@
         box-sizing: border-box;
       }
       #fileexplorerjs-container__splitRight {
-        display: inline-block;
         float: right;
         height: calc(100% - 128px);
         width: calc(100% - 253px);
@@ -84,7 +82,7 @@
       </div>
       <div id="fileexplorerjs-container__splitLeft">
         <div id="fileexplorerjs-tree__container">
-          <div id="tree"></div>
+          <div id="fileexplorerjs-tree"></div>
         </div>
       </div>
       <div id="fileexplorerjs-container__splitRight">
@@ -96,5 +94,36 @@
 <!-- <script defer src="/node_modules/dragselect/dist/ds.min.js"></script> -->
 <script type="module">
   import fileexplorerjs from '/src/js/module.js';
-  fileexplorerjs.init();
+  const config = {
+    // user interface configuration
+    ui: {
+      treeSearchDiv: 'fileexplorerjs-tree__search',
+      breadcrumbDiv: 'fileexplorerjs-toolbar__breadcrumb',
+      tableSearchDiv: 'fileexplorerjs-toolbar__search',
+      treeDiv: 'fileexplorerjs-tree',
+      tableDiv: 'fileexplorerjs-table'
+    },
+    // api configuration for connecting functions to server
+    api: {
+      // route to generate file system directory. Must contain json data formatted as follows:
+      // [{
+      //   DATA_DEPTH: 1 to ... ,
+      //   ICON_TYPE: 'folder' || 'file',
+      //   NAME: 'some name',
+      //   FILE_PATH: 'some file path',
+      //   SIZE: ' some file size',
+      //   LAST_EDIT_DATE: 'some last edit date'
+      // }]
+      directory: '/api/ftp/read/folder',
+      // download files and folders - expected that the files under this location are served staticly.
+      download: '/test/express/assets',
+      // add files and folders - expected that api handles add/{file||folder}/{name}
+      add: '/api/ftp/add',
+      // delete files and folders - expected that api handles delete/{file||folder}/{name}
+      delete: '/api/ftp/delete',
+      // update (rename) files and folders - expected that api handles update/{file||folder}/{name}
+      update: '/api/ftp/update',
+    }
+  }
+  fileexplorerjs.init(config);
 </script>

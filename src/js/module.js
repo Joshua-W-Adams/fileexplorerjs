@@ -21,6 +21,8 @@ import tests from '/src/js/tests.js';
 
 /* ================================ Variables =============================== */
 
+let fileExplorerConfig;
+
 // Gloabl variable to store the file Explorer data
 let fileExplorerData = [];
 
@@ -371,7 +373,7 @@ function _showUploadForm() {
         element: {
           value: function () {
             const form = document.createElement('form');
-            form.action = '/api/ftp/add/file'
+            form.action = `${fileExplorerConfig.api.add}/file`
             form.onsubmit = _uploadFormOnClick(form);
             return form;
           }
@@ -423,7 +425,7 @@ function _addFolderOnClick(dir, folder) {
   // define request config
   const options = {
     method: 'POST'
-    , url: 'api/ftp/add/folder'
+    , url: `${fileExplorerConfig.api.add}/folder`
     , payload: JSON.stringify([{
       dir: dir,
       folder: folder
@@ -479,7 +481,7 @@ function _deleteItemOnClick() {
     // define request config
     const options = {
       method: 'POST'
-      , url: `api/ftp/delete/${type}`
+      , url: `${fileExplorerConfig.api.delete}/${type}`
       , payload: JSON.stringify(payload)
       , headers: {
         'Content-Type': 'application/json'
@@ -521,7 +523,7 @@ function _renameItemOnClick(item, newName) {
     // define request config
     const options = {
       method: 'POST'
-      , url: `api/ftp/update/${type}`
+      , url: `${fileExplorerConfig.api.update}/${type}`
       , payload: JSON.stringify(payload)
       , headers: {
         'Content-Type': 'application/json'
@@ -812,7 +814,7 @@ function _downloadFile() {
   if (fileName && filePath) {
     var link = document.createElement('a');
     link.download = fileName;
-    link.href = `/test/express/assets${filePath}`;
+    link.href = `${fileExplorerConfig.api.download}${filePath}`;
     link.click();
     link.remove();
   }
@@ -849,7 +851,7 @@ function _paste() {
 function _getContextMenu() {
   const options = {
     // div to apply custom context menu to
-    'div': 'fileexplorerjs-table',
+    'div': fileExplorerConfig.ui.tableDiv,
     // renderer for applying css and styles to entire context menu
     'menuRenderer': null,
     // renderer for applying css and styles to each row in the context menu
@@ -878,13 +880,13 @@ function _getTable(treeIndex, data) {
     data: data
   };
   // destroy existing table
-  let table = document.getElementById('fileexplorerjs-table');
+  let table = document.getElementById(fileExplorerConfig.ui.tableDiv);
   while (table.firstChild) {
     table.removeChild(table.lastChild);
   }
   // construct new table
   let options = {
-    div: 'fileexplorerjs-table',
+    div: fileExplorerConfig.ui.tableDiv,
     data: data,
     renderer: null,
     headers: {
@@ -929,13 +931,13 @@ function _getTable(treeIndex, data) {
 function _getTree(data) {
   // destroy existing tree
   // TO DO - Move to treator init function
-  // let e = document.getElementById('tree');
+  // let e = document.getElementById(fileExplorerConfig.ui.treeDiv);
   // while (e.firstChild) {
   //   e.removeChild(e.lastChild);
   // }
   const treeOptions = {
     tree: {
-      div: 'tree',
+      div: fileExplorerConfig.ui.treeDiv,
       data: data,
       renderer: null,
       columns: {
@@ -962,7 +964,7 @@ function _getTree(data) {
       }
     },
     search: {
-      div: 'fileexplorerjs-tree__search'
+      div: fileExplorerConfig.ui.treeSearchDiv
     }
   }
   treeator.init(treeOptions);
@@ -971,13 +973,13 @@ function _getTree(data) {
 
 function _getBreadcrumb(items) {
   // destroy current breadcrumb
-  let bc = document.getElementById('fileexplorerjs-toolbar__breadcrumb');
+  let bc = document.getElementById(fileExplorerConfig.ui.breadcrumbDiv);
   while (bc.firstChild) {
     bc.removeChild(bc.lastChild);
   }
   // construct new breadcrumb
   const breadCrumbOptions = {
-    'div': 'fileexplorerjs-toolbar__breadcrumb',
+    'div': fileExplorerConfig.ui.breadcrumbDiv,
     'breadcrumbs': {
       'items': items
     }
@@ -1010,12 +1012,12 @@ function _reloadBreadCrumb(row, data) {
 
 function _getToolbarSearch() {
   const toolbarSearchOptions = {
-    div: 'fileexplorerjs-toolbar__search',
+    div: fileExplorerConfig.ui.tableSearchDiv,
     // Custom renderer required to override default name of element so that the
     // treeator search has a unique element to target
     renderer: function inputRenderer() {
       const e = {};
-      e.id = 'fileexplorerjs-toolbar__searchinput';
+      e.id = `${fileExplorerConfig.ui.tableSearchDiv}_input`;
       // e.className = 'inputator-container__input';
       e.name = 'search';
       e.placeholder = 'Search Folder';
@@ -1048,10 +1050,11 @@ function _getToolbarSearch() {
 
 function _getTreeSearch(treeOptions) {
   const treeSearchOptions = {
-    div: 'fileexplorerjs-tree__search',
+    div: fileExplorerConfig.ui.treeSearchDiv,
     renderer: function inputRenderer() {
       const e = {};
-      e.id = 'fileexplorerjs-tree__searchinput';
+      // give input a unique name to avoid conflicts with other search boxes
+      e.id = `${fileExplorerConfig.ui.treeSearchDiv}_input`;
       // e.className = 'inputator-container__input';
       e.name = 'search';
       e.placeholder = 'Search Directory';
@@ -1072,7 +1075,7 @@ function _getTreeSearch(treeOptions) {
     onFocusOut: null,
     onHover: null,
     onKeyUp: function () {
-      treeator.searchTable('fileexplorerjs-tree__searchinput', 'treeator-tree', 'tree', treeOptions)
+      treeator.searchTable(`${fileExplorerConfig.ui.treeSearchDiv}_input`, 'treeator-tree', fileExplorerConfig.ui.treeDiv, treeOptions)
     },
     icon: {
       innerHTML: null,
@@ -1158,9 +1161,9 @@ function _addHighlight(tdElement, filter) {
 }
 
 function _searchDirectory() {
-  const div = document.getElementById('fileexplorerjs-table');
+  const div = document.getElementById(fileExplorerConfig.ui.tableDiv);
   const trs = div.getElementsByTagName('tr');
-  const input = document.getElementById('fileexplorerjs-toolbar__searchinput');
+  const input = document.getElementById(`${fileExplorerConfig.ui.tableSearchDiv}_input`);
   const filter = input.value.toUpperCase();
   // Loop through all table rows, and hide those who don't match the search query
   for (let i = 0; i < trs.length; i++) {
@@ -1190,7 +1193,7 @@ function _searchDirectory() {
 // function _addDragSelect() {
 //   const ds = new DragSelect({ // eslint-disable-line no-undef
 //     selectables: document.getElementsByClassName('table-table__row'),
-//     area: document.getElementById('fileexplorerjs-table'),
+//     area: document.getElementById(fileExplorerConfig.ui.tableDiv),
 //     callback: function cb(elements) { // eslint-disable-line no-unused-vars
 //       // do something
 //     }
@@ -1202,7 +1205,7 @@ function _getFileSystemData() {
   // define request config
   const options = {
     method: 'POST'
-    , url: '/api/ftp/read/folder'
+    , url: fileExplorerConfig.api.directory
     , headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -1231,7 +1234,9 @@ function _addEmptyRow(arr, file_path) {
 }
 /* ============================== Public Methods ============================ */
 
-function init(options) {
+function init(config) {
+  // sets functions containing object property
+  fileExplorerConfig = config;
   // get file system data for navigating
   // store data in global object so it can be shared between all modules
   _getFileSystemData().then(function (res) {
