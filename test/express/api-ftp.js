@@ -411,14 +411,14 @@ router.post('/update/file', function (req, res, next) {
     for (let i = 0; i < payload.length; i++) {
       // escape user parameters
       const row = payload[i];
-      const old_dir = _escapeFilePath(row.old_dir || '');
-      const old_file = _escapeFilePath(row.old_file || '');
-      const new_dir = _escapeFilePath(row.new_dir || '');
-      let new_file = _escapeFilePath(row.new_file || '');
+      const old_dir = _escapeFilePath(row.OLD_DIR || '');
+      const old_file = _escapeFilePath(row.OLD_FILE || '');
+      const new_dir = _escapeFilePath(row.NEW_DIR || '');
+      let new_file = _escapeFilePath(row.NEW_FILE || '');
       const oldFullFileName = `${assetDirectory}/${old_dir}/${old_file}`;
       // check if folder already exists
       const exists = fs.existsSync(oldFullFileName);
-      if (exists) {
+      if (exists && new_file) {
         // commence renaming file
         new_file = _checkFileExists(new_dir, new_file);
         const newFullFileName = `${assetDirectory}/${new_dir}/${new_file}`;
@@ -452,14 +452,14 @@ router.post('/update/folder', function (req, res, next) {
     for (let i = 0; i < payload.length; i++) {
       // escape user parameters
       const row = payload[i];
-      const old_dir = _escapeFilePath(row.old_dir || '');
-      const old_folder = _escapeFilePath(row.old_folder || '');
-      const new_dir = _escapeFilePath(row.new_dir || '');
-      let new_folder = _escapeFilePath(row.new_folder || '');
+      const old_dir = _escapeFilePath(row.OLD_DIR || '');
+      const old_folder = _escapeFilePath(row.OLD_FOLDER || '');
+      const new_dir = _escapeFilePath(row.NEW_DIR || '');
+      let new_folder = _escapeFilePath(row.NEW_FOLDER || '');
       const oldFullFolderName = `${assetDirectory}/${old_dir}/${old_folder}`;
       // check if folder already exists
       const exists = fs.existsSync(oldFullFolderName);
-      if (exists) {
+      if (exists && new_folder) {
         // commence renaming file
         new_folder = _checkFileExists(new_dir, new_folder);
         const newFullFolderName = `${assetDirectory}/${new_dir}/${new_folder}`;

@@ -144,6 +144,58 @@ function _getDeleteRecord(change) {
   };
 }
 
+function _getFileFolderDetails(change) {
+  const o = {
+    oldFilePath: '',
+    newFilePath: '',
+    newName: '',
+  }
+  if (change.TYPE === 'folder') {
+    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FOLDER}`;
+    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FOLDER}`;
+    o.newName = change.NEW_FOLDER;
+  } else if (change.TYPE === 'file') {
+    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FILE}`;
+    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FILE}`;
+    o.newName = change.NEW_FILE;
+  }
+  return o;
+}
+
+function _getUpdateRecord (change) {
+  let d = _getFileFolderDetails(change);
+  // determine position of item to update
+  const position = _findPositionInTree(d.oldFilePath, fileExplorerData);
+  // create change configuration for tree updates
+  return {
+    position: position,
+    // updates to data structure
+    updates: [
+      {
+        property: "NAME", 
+        value: d.newName
+      }, {
+        property: "FILE_PATH", 
+        value: d.newFilePath
+      }
+    ], 
+    childUpdates: [
+      {
+        property: "FILE_PATH", 
+        findStartsWithString: d.oldFilePath,
+        replaceString: d.newFilePath
+      }
+    ], 
+    // updates to user interface
+    htmlUpdates: [
+      {
+        column: 0, 
+        value: d.newName
+      }
+    ]
+  };
+}
+
 function _updateUserInterface(changes, changeType) {
   let records = [];
   let tableIndex = fileExplorerTable.treeIndex;
@@ -169,7 +221,17 @@ function _updateUserInterface(changes, changeType) {
       // remove record from index in folder view
       fileExplorerTable.data.splice(index, 1);
     } else if (changeType === 'update') {
-      // TODO
+      row = _getUpdateRecord(change);
+      records.push(row);
+      // update record details
+      const d = _getFileFolderDetails(change);
+      const oldFilePath = d.oldFilePath;
+      const newFilePath = d.newFilePath;
+      const newName = d.newName;
+      const index = _findPositionInTree(oldFilePath, fileExplorerTable.data);
+      const updateRecord = fileExplorerTable.data[index];
+      updateRecord.NAME = newName;
+      updateRecord.FILE_PATH = newFilePath;
     }
   }
   // rebbuild table
@@ -180,6 +242,9 @@ function _updateUserInterface(changes, changeType) {
   } else if (changeType === 'delete') {
     // add elements to tree and push passed updates to tree data model.
     treeator.removeTreeRecords(records);
+  } else if (changeType === "update") {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.updateTreeRecords(records);
   }
 }
 
@@ -430,6 +495,49 @@ function _deleteItemOnClick() {
   Modal.hide();
 }
 
+function _renameItemOnClick(item, newName) {
+  // tableator must have had a hovered row assigned to attempt rename
+  if (item) {
+    let type = item.ICON_TYPE;
+    let payload;
+    const filePath = _stripLastItem(item.FILE_PATH);
+    if (type === 'file') {
+      payload = [{
+        OLD_DIR: filePath,
+        OLD_FILE: item.NAME,
+        NEW_DIR: filePath,
+        NEW_FILE: newName,
+        TYPE: 'file'
+      }];
+    } else if (type === 'folder') {
+      payload = [{
+        OLD_DIR: filePath,
+        OLD_FOLDER: item.NAME,
+        NEW_DIR: filePath,
+        NEW_FOLDER: newName,
+        TYPE: 'folder'
+      }];
+    }
+    // define request config
+    const options = {
+      method: 'POST'
+      , url: `api/ftp/update/${type}`
+      , payload: JSON.stringify(payload)
+      , headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+    // send ajax request to server
+    httpComms.sendRequest(options).then(function(res) {
+      let data = JSON.parse(res);
+      _handleResponse(data, 'update');
+    });
+  }
+  // close modal
+  Modal.hide();
+}
+
+
 function _showAddFolderForm() {
   // destroy any existing modals
   if (Modal) {
@@ -468,18 +576,6 @@ function _showAddFolderForm() {
         element: {
           value: function () {
             let div = document.createElement('div');
-            function _applyRender(element, properties) {
-              const arr = Object.keys(properties);
-              for (let i = 0; i < arr.length; i++) {
-                const prop = arr[i];
-                if (typeof properties[prop] === 'object' && properties[prop] !== null) {
-                  Object.assign(element[prop], properties[prop]);
-                } else {
-                  element[prop] = properties[prop];
-                }
-              }
-              return element;
-            }
             const render = {
               style: {'font-size': '16px',
               'font-family': 'roboto',
@@ -601,6 +697,112 @@ function _showDeleteForm() {
   Modal = modal;
 }
 
+function _applyRender(element, properties) {
+  const arr = Object.keys(properties);
+  for (let i = 0; i < arr.length; i++) {
+    const prop = arr[i];
+    if (typeof properties[prop] === 'object' && properties[prop] !== null) {
+      Object.assign(element[prop], properties[prop]);
+    } else {
+      element[prop] = properties[prop];
+    }
+  }
+  return element;
+}
+
+function _showRenameForm() {
+  // destroy any existing modals
+  if (Modal) {
+    // TO DO - Add to modalator prototype
+    // Element.prototype.remove = function() {
+    //   // delete Dom element
+    //   this.parentElement.removeChild(this);
+    //   // delete object
+    //   // object is automatically removed by the garbage collector
+    //   // when there are no more references to the object
+    //   // therefore not required
+    // }
+    // get top level DOM element
+    let e =  Modal.finalConfig[0].element
+    // remove from DOM
+    e.parentElement.removeChild(e);
+    // TO DO - Add remove to prototype and change close calls to "remove" calls
+  }
+  let input = document.createElement('input');
+  let tableState = tableator.getState();
+  const renameItem = tableState.onMouseDownRow.data;
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'overlay' 
+    }, {
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Rename Item'
+          }
+        }]
+      }, {
+        name: 'dialog_body',
+        element: {
+          value: function () {
+            let div = document.createElement('div');
+            // add a warning that the current item is about to be renamed
+            let renameWarningDiv = document.createElement('div');
+            div.innerHTML = `Are you sure you want to rename the following item?
+              <br></br><br>${renameItem.NAME}</br><br></br>
+              This action is irreversible.<br></br>`
+            div.appendChild(renameWarningDiv);
+            // add input for user to place new name into
+            const render = {
+              style: {
+                'font-size': '16px',
+                'font-family': 'roboto',
+                padding: '10px',
+                boxSizing: 'border-box',
+                width: '100%',
+                border: 'solid 1px rgba(0,0,0,.125)',
+                borderRadius: '3px',
+                backgroundColor: 'rgba(241,243,244,1)'
+              }
+            }
+            _applyRender(input, render);
+            div.appendChild(input);
+            return div;
+          }
+        },
+        style: 'min-height:40px;' 
+      }, {
+        name: 'dialog_footer',
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            style: 'display:none;'
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              content: 'Rename Item'
+            },
+            style: 'background-color:red;',
+            onclick: function () {
+              const newName = input.value
+              _renameItemOnClick(renameItem, newName);
+            }
+          }]
+        }]
+      }]
+    }]
+  }];
+  let modal = modalator.buildModal(config);
+  modal.show();
+  // store Modal in global object
+  Modal = modal;
+}
+
 function _downloadFile() {
   // get state of tableator
   let state = tableator.getState();
@@ -629,7 +831,7 @@ function _delete() {
 }
 
 function _rename() {
-
+  _showRenameForm();
 }
 
 function _move() {
@@ -660,7 +862,7 @@ function _getContextMenu() {
         'File': _addFile
       },
       'Delete' : _delete,
-      // 'Rename' : _rename,
+      'Rename' : _rename,
       // 'Move' : _move,
       // 'Copy' : _copy,
       // 'Paste' : _paste,
@@ -1006,7 +1208,7 @@ function _getFileSystemData() {
       'Content-Type': 'application/json'
     }
     , payload: JSON.stringify([{
-      folder: 'client_root'
+      folder: 'facilities'
     }])
   }
   // send ajax request to server
