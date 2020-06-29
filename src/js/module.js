@@ -942,56 +942,6 @@ function _getTree(data) {
   return treeOptions;
 }
 
-function _addHighlight(tdElement, filter) {
-  let t = (tdElement.innerText || tdElement.textContent);
-  // flags... ig
-  // i = case insensitive
-  // g = global. Search for ALL matches in string
-  let outerHtml = '';
-  if (tdElement.firstChild && tdElement.firstChild.outerHTML) {
-    outerHtml = tdElement.firstChild.outerHTML;
-    // remove chevron from text
-    t = t.replace(tdElement.firstChild.innerText, '');
-  }
-  if (filter !== '') {
-    tdElement.innerHTML = outerHtml + t.replace(new RegExp(`(${filter})`, 'ig'), '<span style="background-color: yellow;">$1</span>');
-  } else {
-    tdElement.innerHTML = outerHtml + t;
-  }
-}
-
-function _searchDirectory(tableDivId, searchDivId) {
-  // get filter data
-  const input = document.getElementById(searchDivId);
-  const filter = input.value.toUpperCase();
-  // get table rows to search
-  const table = document.getElementById(tableDivId);
-  const trs = table.getElementsByTagName('tr');
-  // Loop through all table rows, and hide those who don't match the search query
-  for (let i = 0; i < trs.length; i++) {
-    let found = false;
-    // get all table cells
-    const tds = trs[i].getElementsByTagName('td');
-    // loop through all table cells
-    for (let n = 0; n < tds.length; n++) {
-      const text = (tds[n].innerText || tds[n].textContent);
-      if (text.toUpperCase().indexOf(filter) > -1) {
-        found = true;
-        _addHighlight(tds[n], filter);
-      } else {
-        // strip out highlighting from cells where no match was found
-        // tds[n].innerHTML = text;
-      }
-    }
-    // hide / display row
-    if (found) {
-      trs[i].style.display = '';
-    } else {
-      trs[i].style.display = 'none';
-    }
-  }
-}
-
 function _getToolbarSearch() {
   const toolbarSearchOptions = {
     div: _fileExplorerConfig.ui.tableSearchDiv,
@@ -1019,7 +969,7 @@ function _getToolbarSearch() {
     // onFocusOut: null,
     // onHover: null,
     onKeyUp: function () {
-      _searchDirectory(_fileExplorerConfig.ui.tableDiv, `${_fileExplorerConfig.ui.tableSearchDiv}_input`);
+      tableator.searchTable(_fileExplorerConfig.ui.tableDiv, `${_fileExplorerConfig.ui.tableSearchDiv}_input`);
     },
     icon: {
       // innerHTML: null,
