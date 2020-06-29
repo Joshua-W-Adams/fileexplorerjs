@@ -51,7 +51,8 @@ const settings = {
 const paths = {
 	inputs: {
 		index: "./src/js/module.js"
-		, js: ["./src/js/**/*.js"]
+    // , js: ["./src/js/**/*.js", "./test/**/*.js"]
+    , js: ["./src/js/**/*.js"]
 		, sass: ["./src/sass/**/*.scss"]
 	}
 	, outputs: "dist/"

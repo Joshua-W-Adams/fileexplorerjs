@@ -12,10 +12,7 @@ const Path = require('path');
 
 /* ================================= Settings =============================== */
 
-// TO DO - Update to allow user to write to any folder in this directory and
-// return all results in this directory. This directory should be the facility folder
-// or folders that the user has access to!
-// set a fixed directory that users are allowed to write files to on the server
+// directory that will be managed by the FTP
 const assetDirectory = `${__dirname}/assets`;
 
 /* ================================ Variables =============================== */
@@ -25,7 +22,7 @@ const router = express.Router();
 
 /* ============================= Private Methods ============================ */
 
-function _msToDate (ms) {
+function _msToDate(ms) {
   const d = new Date(ms);
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
@@ -36,7 +33,7 @@ function _getDateTime() {
 }
 
 function _checkFileExists(dir, file) {
-  const fullFileName = `${assetDirectory}/${dir}/${file}`;
+  const fullFileName = `${dir}/${file}`;
   const exists = fs.existsSync(fullFileName);
   let newName;
   if (exists) {
@@ -59,7 +56,7 @@ function _copy(o) {
 
 function _deleteFolderRecursive(path) {
   if (fs.existsSync(path)) {
-    fs.readdirSync(path).forEach(function (file, index) {
+    fs.readdirSync(path).forEach(function (file) {
       const curPath = Path.join(path, file);
       if (fs.statSync(curPath).isDirectory()) { // recurse
         _deleteFolderRecursive(curPath);
@@ -71,40 +68,37 @@ function _deleteFolderRecursive(path) {
   }
 }
 
-// serial look to walk folder and return information on all files
-var walk = function(options, done) {
-  let dir = options.dir;
-  let dirName = options.dirName;
+// walk folder synchronously and return directory listing
+const walk = function (options, done) {
+  const dir = options.dir;
+  const dirName = options.dirName;
   let depth = options.depth || 0;
-  let strip = options.path;
-  var results = [];
+  const strip = options.path;
+  let results = [];
   // push parent folder to data array
   if (depth === 0) {
     const dirStat = fs.statSync(Path.resolve(dir, ''));
     results.push({
       DATA_DEPTH: depth++,
       ICON_TYPE: 'folder',
-      // type: 'folder',
       NAME: dirName,
       FILE_PATH: dir.replace(/\\/g, '/').replace(strip.replace(/\\/g, '/'), ''),
-      // path: file.replace(strip, ''),
       SIZE: `${dirStat.size / 1000} kB`,
       LAST_EDIT_DATE: `${_msToDate(dirStat.mtimeMs)}`
     });
   }
-  fs.readdir(dir, function(err, list) {
+  // commence reading directory listings
+  fs.readdir(dir, function (err, list) {
     if (err) return done(err);
-
     // sort files
-    list = list.sort(function(a, b) { 
+    list = list.sort(function (a, b) {
       // a = first element
       // b = second element
       // determine if a file
-      // if (a.)
       const statA = fs.statSync(Path.resolve(dir, a));
       const statB = fs.statSync(Path.resolve(dir, b));
       // case 1 - both directorys
-      if (statA.isDirectory() && statB.isDirectory ()) {
+      if (statA.isDirectory() && statB.isDirectory()) {
         // check for which is alphbetical order
         return a - b;
       // case 1 - first value is a folder
@@ -120,15 +114,15 @@ var walk = function(options, done) {
         return a - b;
       }
     });
-    var i = 0;
+    let i = 0;
     (function next() {
-      var file = list[i++];
+      let file = list[i++];
       if (!file) return done(null, results);
       file = Path.resolve(dir, file);
-      fs.stat(file, function(err, stat) {
+      fs.stat(file, function (err, stat) {
         if (stat && stat.isDirectory()) {
           /* recurse into a subdirectory */
-          walk({dir: file, depth: depth + 1, path: strip}, function(err, res) {
+          walk({ dir: file, depth: depth + 1, path: strip }, function (err, res) {
             results.push({
               DATA_DEPTH: depth,
               ICON_TYPE: 'folder',
@@ -157,58 +151,23 @@ var walk = function(options, done) {
   });
 };
 
-/* ============================== Public Methods ============================ */
-
-// TO DO - Update to allow multiple directorys to be processed.
-// rescursively read a file system directory and return formatted results to client
-router.post('/read/folder', function (req, res, next) {
-  // get application/json payload
-  const payload = req.body;
-  // error handling
-  if (payload && payload.length > 0) {
-    // loop through all folders for returning directory information
-    for (let i = 0; i < payload.length; i++) {
-      // escape user parameters
-      const row = payload[i];
-      const folder = _escapeFilePath(row.folder || '');
-      const fullFolderName = `${assetDirectory}/${folder}`;
-      // check if folder already exists
-      const exists = fs.existsSync(fullFolderName);
-      if (!exists) {
-        // no directory exists
-        row.STATUS = 'fail';
-        // Return response to user.
-        res.end(JSON.stringify(payload));
-      } else {
-        // read directory info & convert to correct format
-        walk({dirName: folder, dir: fullFolderName, path: assetDirectory}, function(err, results) {
-          if (err) throw err;
-          let data = results;
-          // save to response
-          row.data = data;
-          // inform user of success
-          row.STATUS = 'pass';
-          // Return response to user.
-          res.end(JSON.stringify(payload));
-        });
+// walk folder synchronously and return directory listing
+function walkPromise(options) {
+  return new Promise(function (resolve, reject) {
+    // walk file path asynchronously
+    walk(options, function (err, results) {
+      if (err) {
+        reject(err);
       }
-    }
-    // execute array of promises
-    // Promise.all([promise1, promise2, promise3]).then(function (values) {
-    //   console.log(values);
-    //   // Return response to user.
-    //   res.end(JSON.stringify(payload));
-    // });
-  } else {
-    // return bad request code
-    res.status(400).send();
-  }
-});
+      resolve(results);
+    });
+  });
+}
 
 function _createFileWritePromise(config) {
-  let file = config.file;
-  let fullFilePath = config.fullFilePath;
-  return new Promise(function (resolve, reject) {
+  const file = config.file;
+  const fullFilePath = config.fullFilePath;
+  return new Promise(function (resolve) {
     const fstream = fs.createWriteStream(fullFilePath);
     file.pipe(fstream);
     // on completion of stream
@@ -217,13 +176,66 @@ function _createFileWritePromise(config) {
       fs.stat(fullFilePath, function (err, stats) {
         config.stats = stats;
         resolve(config);
-      })
+      });
     });
   });
 }
+
+/* ============================== Public Methods ============================ */
+
+// rescursively read a file system directory(s) and return formatted results to client
+router.get('/read/folder', function (req, res, next) {
+  // define standard payload format
+  const payload = [];
+  const row = {};
+  payload.push(row);
+  // folder access can be assigned specific to user in the future
+  const folders = ['facilities'];
+  // create list of read promises
+  const promises = [];
+  // loop through folders to read
+  for (let i = 0; i < folders.length; i++) {
+    const folder = folders[i];
+    const fullFolderName = `${assetDirectory}/${folder}`;
+    // check if folder already exists
+    const exists = fs.existsSync(fullFolderName);
+    if (!exists) {
+      // no directory exists
+      row.STATUS = 'fail';
+      // Return response to user.
+      res.end(JSON.stringify(payload));
+      // end loop
+      break;
+    } else {
+      // promise to read directory info & convert to correct format
+      const p = walkPromise({ dirName: folder, dir: fullFolderName, path: assetDirectory });
+      promises.push(p);
+    }
+  }
+  // execute array of promises
+  Promise.all(promises).then(function (results) {
+    // compile list of results
+    let data = [];
+    for (let i = 0; i < results.length; i++) {
+      data = data.concat(results[i]);
+    }
+    // save to response
+    row.data = data;
+    // inform user of success
+    row.STATUS = 'pass';
+    // Return response to user.
+    res.end(JSON.stringify(payload));
+  }).catch(function () {
+    // return bad request code
+    res.status(400).send();
+  });
+});
+
 router.post('/add/file', function (req, res, next) {
   // error handling
   if (req.busboy) {
+    // define standard payload format
+    const response = [];
     // get parameters passed from user
     const dir = _escapeFilePath(req.get('directory'));
     let append = req.get('append');
@@ -233,16 +245,12 @@ router.post('/add/file', function (req, res, next) {
     } else {
       append = {};
     }
-    let response = [];
+    // define array of promises to store write requests
     const promises = [];
-    // handle appended response property case
-    if (typeof response === 'string') {
-      response = JSON.parse(response);
-    }
     // process binary file streams
     req.busboy.on('file', function (fieldname, file, filename) {
       // check if file already exists on server
-      const newFilename = _checkFileExists(dir, filename);
+      const newFilename = _checkFileExists(`${assetDirectory}/${dir}`, filename);
       const relativeFilePath = `${dir}/${newFilename}`;
       const fullFilePath = `${assetDirectory}/${dir}/${newFilename}`;
       const config = {
@@ -250,7 +258,7 @@ router.post('/add/file', function (req, res, next) {
         newFilename: newFilename,
         fullFilePath: fullFilePath,
         relativeFilePath: relativeFilePath
-      }
+      };
       // create array of promises to write all files to file system
       promises.push(_createFileWritePromise(config));
     });
@@ -259,7 +267,7 @@ router.post('/add/file', function (req, res, next) {
       Promise.all(promises).then(function (writeDetails) {
         // loop through all write operations
         for (let i = 0; i < writeDetails.length; i++) {
-          let fileDetails = writeDetails[i];
+          const fileDetails = writeDetails[i];
           // append details to response object
           const row = _copy(append);
           row.STATUS = 'pass';
@@ -272,7 +280,10 @@ router.post('/add/file', function (req, res, next) {
         }
         // send response
         res.end(JSON.stringify(response));
-      })
+      }).catch(function () {
+        // return bad request code
+        res.status(400).send();
+      });
     });
     // pipe request into busboy for processing
     req.pipe(req.busboy);
@@ -300,7 +311,7 @@ router.post('/add/folder', function (req, res, next) {
         // create directory
         fs.mkdirSync(fullFolderName, { recursive: true });
         // get directory stats
-        let stats = fs.statSync(fullFolderName);
+        const stats = fs.statSync(fullFolderName);
         // let strip = assetDirectory;
         // format response correctly
         row.STATUS = 'pass';
@@ -407,7 +418,7 @@ router.post('/update/file', function (req, res, next) {
   const payload = req.body;
   // error handling
   if (payload && payload.length > 0) {
-    // loop through all folders for creation
+    // loop through all items for rename
     for (let i = 0; i < payload.length; i++) {
       // escape user parameters
       const row = payload[i];
@@ -420,7 +431,7 @@ router.post('/update/file', function (req, res, next) {
       const exists = fs.existsSync(oldFullFileName);
       if (exists && new_file) {
         // commence renaming file
-        new_file = _checkFileExists(new_dir, new_file);
+        new_file = _checkFileExists(`${assetDirectory}/${new_dir}`, new_file);
         const newFullFileName = `${assetDirectory}/${new_dir}/${new_file}`;
         fs.renameSync(oldFullFileName, newFullFileName);
         row.STATUS = 'pass';
@@ -448,7 +459,7 @@ router.post('/update/folder', function (req, res, next) {
   const payload = req.body;
   // error handling
   if (payload && payload.length > 0) {
-    // loop through all folders for creation
+    // loop through all items for update
     for (let i = 0; i < payload.length; i++) {
       // escape user parameters
       const row = payload[i];
@@ -461,7 +472,7 @@ router.post('/update/folder', function (req, res, next) {
       const exists = fs.existsSync(oldFullFolderName);
       if (exists && new_folder) {
         // commence renaming file
-        new_folder = _checkFileExists(new_dir, new_folder);
+        new_folder = _checkFileExists(`${assetDirectory}/${new_dir}`, new_folder);
         const newFullFolderName = `${assetDirectory}/${new_dir}/${new_folder}`;
         fs.renameSync(oldFullFolderName, newFullFolderName);
         row.STATUS = 'pass';

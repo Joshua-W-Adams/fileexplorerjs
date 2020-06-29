@@ -1,253 +1,182 @@
 /*!
  * Fileexplorerjs
- * A JavaScript GUI module for exploring files
+ * A JavaScript GUI module for exploring file systems
  * (c) 2020 Joshua Adams
  */
 
 /* ============================== Import Modules ============================ */
 
+// import node modules
 import breadcrumb from '/node_modules/breadcrumbjs/src/js/module.js';
 import inputator from '/node_modules/inputator/src/js/module.js';
-// import treeator from '/repos/treeator/src/js/module.js';
 import treeator from '/node_modules/treeator/src/js/module.js';
-// import tableator from '/repos/tableator/src/js/module.js';
 import tableator from '/node_modules/tableator/src/js/module.js';
-import contextmenujs from '/node_modules/contextmenuator/src/js/module.js';
-
+import contextmenuator from '/node_modules/contextmenuator/src/js/module.js';
 import modalator from '/node_modules/modalator/src/js/modalator.js';
-import httpComms from '/src/js/http-comms.js';
 
-import tests from '/src/js/tests.js';
+// import local modules
+import http from '/src/js/http.js';
+
+// import test modules
+// import tests from '/src/js/tests.js';
 
 /* ================================ Variables =============================== */
 
-let fileExplorerConfig;
-
-// Gloabl variable to store the file Explorer data
-let fileExplorerData = [];
-
-// Global variables to store the current navigation status of the file explorer
-// module
-let fileExplorerTable = {
-  // location of the current data displayed in the tree data model
-  treeIndex: null,
-  // table data currently displayed
+// *** private module variables ***
+// stores the passed configuration object for the file explorer view
+let _fileExplorerConfig;
+// master file explorer data model
+let _fileExplorerDataModel = [];
+// store the state of the folder view
+let _fileExplorerFolderView = {
+  // location of the displayed folder in the data model
+  dataModelIndex: null,
+  // folder data currently displayed
   data: null
 };
-
-let Modal;
+// store modal state
+let _modal;
 
 /* ============================= Private Methods ============================ */
 
-function _displaySelectedFiles(element, elementId) {
+function _applyRender(element, properties) {
+  const arr = Object.keys(properties);
+  for (let i = 0; i < arr.length; i++) {
+    const prop = arr[i];
+    if (typeof properties[prop] === 'object' && properties[prop] !== null) {
+      Object.assign(element[prop], properties[prop]);
+    } else {
+      element[prop] = properties[prop];
+    }
+  }
+  return element;
+}
+
+function _findPositionInTree(filePath, data) {
+  let pos;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].FILE_PATH === filePath) {
+      pos = i;
+      return pos;
+    }
+  }
+  return pos;
+}
+
+function _findParent(pos, data) {
+  for (let i = pos - 1; i > -1; i--) {
+    if (data[i].ICON_TYPE === 'folder' && data[i].DATA_DEPTH === data[pos].DATA_DEPTH - 1) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function _getFileList(inputElement) {
   // get list of files
-  // const files = this.files;
-  const files = element.files;
+  const files = inputElement.files;
   // create list to load files into
-  let fileNames = document.createElement('ol');
-  fileNames.style.listStyleType = 'none';
-  // convert files to comma separated values
+  const fileList = document.createElement('ol');
+  // style list
+  fileList.style.listStyleType = 'none';
+  // add list items to file list
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const li = document.createElement('li');
     li.innerHTML = file.name;
     li.style.padding = '10px 0px';
-    fileNames.appendChild(li)
+    fileList.appendChild(li);
   }
-  // get element to display file list in
-  let e = document.getElementById(elementId);
-  // remove previous items
-  e.innerHTML = '';
-  // assign file list to span
-  e.appendChild(fileNames);
+  return fileList;
 }
 
-function _uploadButtonRenderer(displayElementId) {
-  // Add custom label to override default input style
-  const label = document.createElement('label');
-  label.htmlFor = 'fileUpload';
-  label.innerHTML = 'Select Files';
-  label.style.display = 'inline-block';
-
-  // add span to load list of selected documents
-  // const span = document.createElement('span');
-  // span.id = 'files-selected';
-  // label.appendChild(span);
-
-  // create input element for file selector
-  const e = document.createElement('input');
-  e.type = 'file';
-  e.multiple = 'multiple';
-  e.name = 'fileUploaded';
-  e.id = 'fileUpload';
-  e.style.display ='none';
-
-  // add function for assigning list of files on change
-  e.onchange = function () {
-    _displaySelectedFiles(e, displayElementId);
-  }
-
-  // build element object modal
-  label.appendChild(e);
-
-  return label;
+function _addEmptyRow(arr, file_path) {
+  // get empty row of data to always be displayed to user
+  const row = {
+    DATA_DEPTH: '',
+    ICON_TYPE: '',
+    NAME: 'add new item',
+    SIZE: '',
+    LAST_EDIT_DATE: '',
+    FILE_PATH: file_path
+  };
+  // push row to array
+  arr.push(row);
+  return arr;
 }
 
-// tests.testApis();
-
-function _findLastChild(data, elementPosition, depth) {
-  // loop upwards (backwards) through table array
-  for (let i = elementPosition; i < data.length; i++) {
-    const row = data[i];
-    const rowDepth = row.DATA_DEPTH;
-    // sibling or parent sibling encountered
-    if (i !== elementPosition && rowDepth <= depth) {
-      let lastChildIndex = i - 1;
-      // let lastChild = data[lastChildIndex];
-      // handle case that parent has no children
-      if (i !== 1) {
-        return lastChildIndex;
-      }
-    // reached end of data set
-    } else if (i === data.length - 1) {
-      return i;
+function _getBreadCrumbFilePath(items, position) {
+  let filePath = '';
+  for (let i = 0; i <= position; i++) {
+    if (i === position) {
+      filePath = `${filePath}${items[i].item}`;
+    } else {
+      filePath = `${filePath}${items[i].item}/`;
     }
   }
+  return filePath;
 }
 
-function _getAddRecord(change, tableDepth, tableIndex) {
-  // create record to insert into interface at appropriate locations
-  let row = {
-    // calculate depth of row to insert
-    DATA_DEPTH: tableDepth + 1,
-    NAME: change.NAME,
-    ICON_TYPE: change.ICON_TYPE,
-    SIZE: change.SIZE,
-    LAST_EDIT_DATE: change.LAST_EDIT_DATE,
-    FILE_PATH: change.FILE_PATH
+function _updateTreeClickedItem(pos) {
+  // update tree single & double clicked rows
+  const table = document.getElementById('treeator-tree');
+  const tr = table.getElementsByTagName('tr');
+  treeator.onClickDefault(tr[pos]);
+  treeator.onDblClickDefault(tr[pos]);
+}
+
+function _getBreadcrumb(items) {
+  // destroy current breadcrumb
+  const bc = document.getElementById(_fileExplorerConfig.ui.breadcrumbDiv);
+  while (bc.firstChild) {
+    bc.removeChild(bc.lastChild);
   }
-  // determine position to insert new record into tree
-  let position = _findLastChild(fileExplorerData, tableIndex || 0, tableDepth);
-  // create change configuration for tree updates
-  return {
-    position: position + 1,
-    data: row
-  };
-}
-
-function _getDeleteRecord(change) {
-  // determine position of item to delete
-  let position = _findPositionInTree(change.FILE_PATH, fileExplorerData);
-  // create change configuration for tree updates
-  return {
-    position: position,
-    // not required for deletion
-    data: null
-  };
-}
-
-function _getFileFolderDetails(change) {
-  const o = {
-    oldFilePath: '',
-    newFilePath: '',
-    newName: '',
-  }
-  if (change.TYPE === 'folder') {
-    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FOLDER}`;
-    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FOLDER}`;
-    o.newName = change.NEW_FOLDER;
-  } else if (change.TYPE === 'file') {
-    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FILE}`;
-    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FILE}`;
-    o.newName = change.NEW_FILE;
-  }
-  return o;
-}
-
-function _getUpdateRecord (change) {
-  let d = _getFileFolderDetails(change);
-  // determine position of item to update
-  const position = _findPositionInTree(d.oldFilePath, fileExplorerData);
-  // create change configuration for tree updates
-  return {
-    position: position,
-    // updates to data structure
-    updates: [
-      {
-        property: "NAME", 
-        value: d.newName
-      }, {
-        property: "FILE_PATH", 
-        value: d.newFilePath
-      }
-    ], 
-    childUpdates: [
-      {
-        property: "FILE_PATH", 
-        findStartsWithString: d.oldFilePath,
-        replaceString: d.newFilePath
-      }
-    ], 
-    // updates to user interface
-    htmlUpdates: [
-      {
-        column: 0, 
-        value: d.newName
-      }
-    ]
-  };
-}
-
-function _updateUserInterface(changes, changeType) {
-  let records = [];
-  let tableIndex = fileExplorerTable.treeIndex;
-  let tableDepth = -1;
-  if (tableIndex || tableIndex === 0) {
-    tableDepth = fileExplorerData[tableIndex].DATA_DEPTH;
-  }
-  // loop through list of changes returned by server
-  for (let i = 0; i < changes.length; i++) {
-    let change = changes[i];
-    let row;
-    if (changeType === 'add') {
-      row = _getAddRecord(change, tableDepth, tableIndex);
-      records.push(row);
-      // update table data model so that table is refreshed with correct information on rebuild
-      // push to second last position in table so it appears above the "add new row" placeholder
-      fileExplorerTable.data.splice(fileExplorerTable.data.length - 1, 0, row.data);   
-    } else if (changeType === 'delete') {
-      row = _getDeleteRecord(change);
-      records.push(row);
-      // find position of record in folder view
-      const index = _findPositionInTree(change.FILE_PATH, fileExplorerTable.data);
-      // remove record from index in folder view
-      fileExplorerTable.data.splice(index, 1);
-    } else if (changeType === 'update') {
-      row = _getUpdateRecord(change);
-      records.push(row);
-      // update record details
-      const d = _getFileFolderDetails(change);
-      const oldFilePath = d.oldFilePath;
-      const newFilePath = d.newFilePath;
-      const newName = d.newName;
-      const index = _findPositionInTree(oldFilePath, fileExplorerTable.data);
-      const updateRecord = fileExplorerTable.data[index];
-      updateRecord.NAME = newName;
-      updateRecord.FILE_PATH = newFilePath;
+  // construct new breadcrumb
+  const breadCrumbOptions = {
+    div: _fileExplorerConfig.ui.breadcrumbDiv,
+    breadcrumbs: {
+      items: items
     }
+  };
+  breadcrumb.init(breadCrumbOptions);
+}
+
+function _reloadTable(matchedRow, pos, data) {
+  if (matchedRow.ICON_TYPE === 'folder') {
+    // get all children of current row
+    const children = treeator.getChildren(pos, data);
+    const folderData = _addEmptyRow(children, data[pos].FILE_PATH);
+    _getFolderView(pos, folderData);
+  } else {
+    const parentPos = _findParent(pos, data);
+    // get all children of current row
+    const children = treeator.getChildren(parentPos, data);
+    const folderData = _addEmptyRow(children, data[parentPos].FILE_PATH);
+    _getFolderView(parentPos, folderData);
   }
-  // rebbuild table
-  _getTable(tableIndex, fileExplorerTable.data);
-  if (changeType === 'add') {
-    // add elements to tree and push passed updates to tree data model.
-    treeator.appendTreeRecords(records);
-  } else if (changeType === 'delete') {
-    // add elements to tree and push passed updates to tree data model.
-    treeator.removeTreeRecords(records);
-  } else if (changeType === "update") {
-    // add elements to tree and push passed updates to tree data model.
-    treeator.updateTreeRecords(records);
+}
+
+function _reloadBreadCrumb(row, data) {
+  // create breadcrumb
+  const arr = row.FILE_PATH.split('/');
+  const items = [];
+  for (let i = 0; i < arr.length; i++) {
+    const row = {
+      item: arr[i],
+      onClick: function (li, items, position) {
+        // get filePath to lookup in tree array
+        const filePath = _getBreadCrumbFilePath(items, position);
+        // find position of filePath in tree data
+        const pos = _findPositionInTree(filePath, data);
+        // Update tree
+        _updateTreeClickedItem(pos);
+        // Update table
+        _reloadTable(data[pos], pos, data);
+      }
+    };
+    items.push(row);
   }
+  _getBreadcrumb(items);
 }
 
 function _handleResponse(data, changeType) {
@@ -279,102 +208,89 @@ function _handleResponse(data, changeType) {
     // TO DO - Inform user of failed update
   }
 }
-  
-function _uploadFormOnClick(form) {
-  return function() {
+
+function _addFileFormOnClick(form, dir) {
+  return function () {
     // get form data model for submission to server
     const formData = new FormData(form);
-    let dir = '';
-    if (fileExplorerTable.treeIndex || fileExplorerTable.treeIndex === 0) {
-      dir = fileExplorerData[fileExplorerTable.treeIndex].FILE_PATH;
-    }
-    // define request config
+    // define http request
     const options = {
-      method: 'POST'
-      , url: form.action
-      , payload: formData
-      , headers: {
+      method: 'POST',
+      url: form.action,
+      payload: formData,
+      headers: {
         // content type automatically assigned by form data
         // 'Content-Type': null
         directory: dir
-        , append: {
-          // N/A all properties are assigned server side
-          // or in response processing
-        }
       }
-    }
-    let files = document.getElementById('fileUpload').files;
+    };
+    const files = document.getElementById('selectFilesButton').files;
     // Only submit request to server when files have been selected by user
     if (files.length > 0) {
       // send ajax request to server
-      httpComms.sendRequest(options).then(function(res) {
-        let data = JSON.parse(res);
+      http.sendRequest(options).then(function (res) {
+        const data = JSON.parse(res);
         _handleResponse(data, 'add');
       });
     }
     return false; // To avoid actual submission of the form
-  }
+  };
 }
 
-function _showUploadForm() {
-  // destroy any existing modals
-  if (Modal) {
-    // TO DO - Add to modalator prototype
-    // Element.prototype.remove = function() {
-    //   // delete Dom element
-    //   this.parentElement.removeChild(this);
-    //   // delete object
-    //   // object is automatically removed by the garbage collector
-    //   // when there are no more references to the object
-    //   // therefore not required
-    // }
-    // get top level DOM element
-    let e =  Modal.finalConfig[0].element
-    // remove from DOM
-    e.parentElement.removeChild(e);
-    // TO DO - Add remove to prototype and change close calls to "remove" calls
-  }
+function _displaySelectedFiles(inputElement, displayElementId) {
+  // generate file list element from user selected files
+  const fileList = _getFileList(inputElement);
+  // get element to display file list in
+  const e = document.getElementById(displayElementId);
+  // remove previous items
+  e.innerHTML = '';
+  // assign file list to span
+  e.appendChild(fileList);
+}
+
+function _selectFilesButtonRenderer() {
+  // create input element for file selector
+  const e = document.createElement('input');
+  e.type = 'file';
+  e.multiple = 'multiple';
+  e.id = 'selectFilesButton';
+  // http request function requires a name for submission
+  e.name = 'uploadFiles';
+  e.style.display = 'none';
+  // custom label to override default input style
+  const label = document.createElement('label');
+  label.htmlFor = 'selectFilesButton';
+  label.innerHTML = 'Select Files';
+  label.style.display = 'inline-block';
+  // add function for assigning list of files on change
+  e.onchange = function () {
+    _displaySelectedFiles(e, 'dialog_body');
+  };
+  // build element object model
+  label.appendChild(e);
+  return label;
+}
+
+function _getAddFileFormConfig(restApi, dir) {
   const config = [{
     name: 'modal',
     child: [{
-      name: 'overlay',
-      style: function () {
-        let properties = {
-          'background':'#ccc',
-          'opacity':'0.7'
-        }
-        return properties;
-      } 
-    }, {
       name: 'dialog',
       child: [{
         name: 'dialog_header',
-        // style: 'border-bottom: none;',
         child: [{
           name: 'dialog_header_title',
           element: {
             content: 'Upload Files'
           }
-        }, {
-          name: 'dialog_header_close_icon',
-          style: 'color: rgb(255,0,0);'
         }]
-      }, {
-        name: 'dialog_body',
-        style: function () {
-          let properties = {
-            // 'color': 'black',
-            // 'display': 'none'
-          }
-          return properties;            
-        } 
       }, {
         name: 'dialog_footer',
         element: {
           value: function () {
             const form = document.createElement('form');
-            form.action = `${fileExplorerConfig.api.add}/file`
-            form.onsubmit = _uploadFormOnClick(form);
+            form.action = restApi;
+            form.onsubmit = _addFileFormOnClick(form, dir);
             return form;
           }
         },
@@ -384,15 +300,10 @@ function _showUploadForm() {
             name: 'dialog_footer_button_two',
             element: {
               value: function () {
-                return _uploadButtonRenderer('dialog_body');
+                return _selectFilesButtonRenderer();
               }
             },
-            style: function () {
-              let properties = {
-                'background-color': '#007bff'
-              }
-              return properties;
-            },
+            // disable default onclick function to close form
             onclick: function () {},
           }, {
             name: 'dialog_footer_button_one',
@@ -405,9 +316,11 @@ function _showUploadForm() {
               }
             },
             style: function () {
-              let properties = {       
-                'background-color': '#5a6268'
-              }
+              const properties = {
+                'background-color': '#5a6268',
+                'font-family': 'Gotham SSm, Helvetica, Arial, sans-serif',
+                'font-size': '16px'
+              };
               return properties;
             }
           }]
@@ -415,44 +328,118 @@ function _showUploadForm() {
       }]
     }]
   }];
-  let modal = modalator.buildModal(config);
-  modal.show();
-  // store Modal in global object
-  Modal = modal;
+  return config;
+}
+
+function _getInput() {
+  const input = document.createElement('input');
+  const render = {
+    style: {
+      'font-size': '16px',
+      'font-family': 'roboto',
+      padding: '10px',
+      boxSizing: 'border-box',
+      width: '100%',
+      border: 'solid 1px rgba(0,0,0,.125)',
+      borderRadius: '3px',
+      backgroundColor: 'rgba(241,243,244,1)'
+    }
+  };
+  _applyRender(input, render);
+  return input;
+}
+
+function _getCurrentDirectory() {
+  let dir = '';
+  // check if folder view has been loaded
+  if (_fileExplorerFolderView.dataModelIndex || _fileExplorerFolderView.dataModelIndex === 0) {
+    dir = _fileExplorerDataModel[_fileExplorerFolderView.dataModelIndex].FILE_PATH;
+  }
+  return dir;
 }
 
 function _addFolderOnClick(dir, folder) {
   // define request config
   const options = {
-    method: 'POST'
-    , url: `${fileExplorerConfig.api.add}/folder`
-    , payload: JSON.stringify([{
+    method: 'POST',
+    url: `${_fileExplorerConfig.api.add}/folder`,
+    payload: JSON.stringify([{
       dir: dir,
       folder: folder
-    }])
-    , headers: {
+    }]),
+    headers: {
       'Content-Type': 'application/json'
     }
-  }
+  };
   // send ajax request to server
-  httpComms.sendRequest(options).then(function(res) {
-    let data = JSON.parse(res);
+  http.sendRequest(options).then(function (res) {
+    const data = JSON.parse(res);
     _handleResponse(data, 'add');
   });
   // close modal
-  Modal.hide();
+  _modal.hide();
+}
+
+function _getAddFolderFormConfig() {
+  const input = _getInput();
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Add Folder'
+          }
+        }]
+      }, {
+        name: 'dialog_body',
+        element: {
+          value: function () {
+            const div = document.createElement('div');
+            div.appendChild(input);
+            return div;
+          }
+        },
+        style: 'min-height:40px;'
+      }, {
+        name: 'dialog_footer',
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            style: 'display:none;'
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              content: 'Add Folder'
+            },
+            style: 'background-color:#007bff;',
+            onclick: function () {
+              const folder = input.value;
+              const dir = _getCurrentDirectory();
+              _addFolderOnClick(dir, folder);
+            }
+          }]
+        }]
+      }]
+    }]
+  }];
+  return config;
 }
 
 function _stripLastItem(filePath) {
-  let arr = filePath.split('/');
+  const arr = filePath.split('/');
   let stripped = '';
   for (let i = 0; i < arr.length - 1; i++) {
-    let row = arr[i];
+    const row = arr[i];
     if (row && row !== '') {
       if (stripped !== '') {
-        stripped += `/${arr[i]}`
+        stripped += `/${arr[i]}`;
       } else {
-        stripped += `${arr[i]}`
+        stripped += `${arr[i]}`;
       }
     }
   }
@@ -460,12 +447,12 @@ function _stripLastItem(filePath) {
 }
 
 function _deleteItemOnClick() {
-  let state = tableator.getState();
-  let onMouseDownRow = state.onMouseDownRow;
-  let item = onMouseDownRow.data;
+  const state = tableator.getState();
+  const onMouseDownRow = state.onMouseDownRow;
+  const item = onMouseDownRow.data;
   // tableator must have had a hovered row assigned to attempt deletion
   if (item) {
-    let type = item.ICON_TYPE;
+    const type = item.ICON_TYPE;
     let payload;
     if (type === 'file') {
       payload = [{
@@ -480,27 +467,76 @@ function _deleteItemOnClick() {
     }
     // define request config
     const options = {
-      method: 'POST'
-      , url: `${fileExplorerConfig.api.delete}/${type}`
-      , payload: JSON.stringify(payload)
-      , headers: {
+      method: 'POST',
+      url: `${_fileExplorerConfig.api.delete}/${type}`,
+      payload: JSON.stringify(payload),
+      headers: {
         'Content-Type': 'application/json'
       }
-    }
+    };
     // send ajax request to server
-    httpComms.sendRequest(options).then(function(res) {
-      let data = JSON.parse(res);
+    http.sendRequest(options).then(function (res) {
+      const data = JSON.parse(res);
       _handleResponse(data, 'delete');
     });
   }
   // close modal
-  Modal.hide();
+  _modal.hide();
+}
+
+function _getDeleteFormConfig() {
+  const tableState = tableator.getState();
+  const deleteItem = tableState.onMouseDownRow.data;
+  const config = [{
+    name: 'modal',
+    child: [{
+      name: 'dialog',
+      child: [{
+        name: 'dialog_header',
+        child: [{
+          name: 'dialog_header_title',
+          element: {
+            content: 'Delete Item'
+          }
+        }]
+      }, {
+        name: 'dialog_body',
+        element: {
+          value: function () {
+            const div = document.createElement('div');
+            div.innerHTML = `Are you sure you want to delete to following item?
+              <br></br><br>${deleteItem.NAME}</br><br></br>
+              This action is irreversible.`;
+            return div;
+          }
+        },
+        style: 'min-height:40px;'
+      }, {
+        name: 'dialog_footer',
+        child: [{
+          name: 'dialog_footer_child',
+          child: [{
+            name: 'dialog_footer_button_two',
+            style: 'display:none;'
+          }, {
+            name: 'dialog_footer_button_one',
+            element: {
+              content: 'Delete Item'
+            },
+            style: 'background-color: red;',
+            onclick: _deleteItemOnClick
+          }]
+        }]
+      }]
+    }]
+  }];
+  return config;
 }
 
 function _renameItemOnClick(item, newName) {
   // tableator must have had a hovered row assigned to attempt rename
   if (item) {
-    let type = item.ICON_TYPE;
+    const type = item.ICON_TYPE;
     let payload;
     const filePath = _stripLastItem(item.FILE_PATH);
     if (type === 'file') {
@@ -522,222 +558,30 @@ function _renameItemOnClick(item, newName) {
     }
     // define request config
     const options = {
-      method: 'POST'
-      , url: `${fileExplorerConfig.api.update}/${type}`
-      , payload: JSON.stringify(payload)
-      , headers: {
+      method: 'POST',
+      url: `${_fileExplorerConfig.api.update}/${type}`,
+      payload: JSON.stringify(payload),
+      headers: {
         'Content-Type': 'application/json'
       }
-    }
+    };
     // send ajax request to server
-    httpComms.sendRequest(options).then(function(res) {
-      let data = JSON.parse(res);
+    http.sendRequest(options).then(function (res) {
+      const data = JSON.parse(res);
       _handleResponse(data, 'update');
     });
   }
   // close modal
-  Modal.hide();
+  _modal.hide();
 }
 
-
-function _showAddFolderForm() {
-  // destroy any existing modals
-  if (Modal) {
-    // TO DO - Add to modalator prototype
-    // Element.prototype.remove = function() {
-    //   // delete Dom element
-    //   this.parentElement.removeChild(this);
-    //   // delete object
-    //   // object is automatically removed by the garbage collector
-    //   // when there are no more references to the object
-    //   // therefore not required
-    // }
-    // get top level DOM element
-    let e =  Modal.finalConfig[0].element
-    // remove from DOM
-    e.parentElement.removeChild(e);
-    // TO DO - Add remove to prototype and change close calls to "remove" calls
-  }
-  let input = document.createElement('input');
-  const config = [{
-    name: 'modal',
-    child: [{
-      name: 'overlay' 
-    }, {
-      name: 'dialog',
-      child: [{
-        name: 'dialog_header',
-        child: [{
-          name: 'dialog_header_title',
-          element: {
-            content: 'Add Folder'
-          }
-        }]
-      }, {
-        name: 'dialog_body',
-        element: {
-          value: function () {
-            let div = document.createElement('div');
-            const render = {
-              style: {'font-size': '16px',
-              'font-family': 'roboto',
-              padding: '10px',
-              boxSizing: 'border-box',
-              width: '100%',
-              border: 'solid 1px rgba(0,0,0,.125)',
-              borderRadius: '3px',
-              backgroundColor: 'rgba(241,243,244,1)'}
-            }
-            _applyRender(input, render);
-            div.appendChild(input);
-            return div;
-          }
-        },
-        style: 'min-height:40px;' 
-      }, {
-        name: 'dialog_footer',
-        child: [{
-          name: 'dialog_footer_child',
-          child: [{
-            name: 'dialog_footer_button_two',
-            style: 'display:none;'
-          }, {
-            name: 'dialog_footer_button_one',
-            element: {
-              content: 'Add Folder'
-            },
-            style: 'background-color:#007bff;',
-            onclick: function () {
-              // on click operation to upload a folder
-              // get value from input
-              const folder = input.value
-              let dir = '';
-              if (fileExplorerTable.treeIndex || fileExplorerTable.treeIndex === 0) {
-                dir = fileExplorerData[fileExplorerTable.treeIndex].FILE_PATH;
-              }
-              // send value to server to writing to file system
-              _addFolderOnClick(dir, folder);
-            }
-          }]
-        }]
-      }]
-    }]
-  }];
-  let modal = modalator.buildModal(config);
-  modal.show();
-  // store Modal in global object
-  Modal = modal;
-}
-
-function _showDeleteForm() {
-  // destroy any existing modals
-  if (Modal) {
-    // TO DO - Add to modalator prototype
-    // Element.prototype.remove = function() {
-    //   // delete Dom element
-    //   this.parentElement.removeChild(this);
-    //   // delete object
-    //   // object is automatically removed by the garbage collector
-    //   // when there are no more references to the object
-    //   // therefore not required
-    // }
-    // get top level DOM element
-    let e =  Modal.finalConfig[0].element
-    // remove from DOM
-    e.parentElement.removeChild(e);
-    // TO DO - Add remove to prototype and change close calls to "remove" calls
-  }
-  let deleteItemName = tableator.getState().onMouseDownRow.data.NAME;
-  const config = [{
-    name: 'modal',
-    child: [{
-      name: 'overlay' 
-    }, {
-      name: 'dialog',
-      child: [{
-        name: 'dialog_header',
-        child: [{
-          name: 'dialog_header_title',
-          element: {
-            content: 'Delete Item'
-          }
-        }]
-      }, {
-        name: 'dialog_body',
-        element: {
-          value: function () {
-            let div = document.createElement('div');
-            div.innerHTML = `Are you sure you want to delete to following item?
-              <br></br><br>${deleteItemName}</br><br></br>
-              This action is irreversible.`
-            return div;
-          }
-        },
-        style: 'min-height:40px;' 
-      }, {
-        name: 'dialog_footer',
-        child: [{
-          name: 'dialog_footer_child',
-          child: [{
-            name: 'dialog_footer_button_two',
-            style: 'display:none;'
-          }, {
-            name: 'dialog_footer_button_one',
-            element: {
-              content: 'Delete Item'
-            },
-            style: 'background-color:red;',
-            onclick: _deleteItemOnClick
-          }]
-        }]
-      }]
-    }]
-  }];
-  let modal = modalator.buildModal(config);
-  modal.show();
-  // store Modal in global object
-  Modal = modal;
-}
-
-function _applyRender(element, properties) {
-  const arr = Object.keys(properties);
-  for (let i = 0; i < arr.length; i++) {
-    const prop = arr[i];
-    if (typeof properties[prop] === 'object' && properties[prop] !== null) {
-      Object.assign(element[prop], properties[prop]);
-    } else {
-      element[prop] = properties[prop];
-    }
-  }
-  return element;
-}
-
-function _showRenameForm() {
-  // destroy any existing modals
-  if (Modal) {
-    // TO DO - Add to modalator prototype
-    // Element.prototype.remove = function() {
-    //   // delete Dom element
-    //   this.parentElement.removeChild(this);
-    //   // delete object
-    //   // object is automatically removed by the garbage collector
-    //   // when there are no more references to the object
-    //   // therefore not required
-    // }
-    // get top level DOM element
-    let e =  Modal.finalConfig[0].element
-    // remove from DOM
-    e.parentElement.removeChild(e);
-    // TO DO - Add remove to prototype and change close calls to "remove" calls
-  }
-  let input = document.createElement('input');
-  let tableState = tableator.getState();
+function _getRenameFormConfig() {
+  const input = _getInput();
+  const tableState = tableator.getState();
   const renameItem = tableState.onMouseDownRow.data;
   const config = [{
     name: 'modal',
     child: [{
-      name: 'overlay' 
-    }, {
       name: 'dialog',
       child: [{
         name: 'dialog_header',
@@ -751,32 +595,19 @@ function _showRenameForm() {
         name: 'dialog_body',
         element: {
           value: function () {
-            let div = document.createElement('div');
+            const div = document.createElement('div');
             // add a warning that the current item is about to be renamed
-            let renameWarningDiv = document.createElement('div');
+            const renameWarningDiv = document.createElement('div');
             div.innerHTML = `Are you sure you want to rename the following item?
               <br></br><br>${renameItem.NAME}</br><br></br>
-              This action is irreversible.<br></br>`
+              This action is irreversible.<br></br>`;
             div.appendChild(renameWarningDiv);
             // add input for user to place new name into
-            const render = {
-              style: {
-                'font-size': '16px',
-                'font-family': 'roboto',
-                padding: '10px',
-                boxSizing: 'border-box',
-                width: '100%',
-                border: 'solid 1px rgba(0,0,0,.125)',
-                borderRadius: '3px',
-                backgroundColor: 'rgba(241,243,244,1)'
-              }
-            }
-            _applyRender(input, render);
             div.appendChild(input);
             return div;
           }
         },
-        style: 'min-height:40px;' 
+        style: 'min-height:40px;'
       }, {
         name: 'dialog_footer',
         child: [{
@@ -791,7 +622,7 @@ function _showRenameForm() {
             },
             style: 'background-color:red;',
             onclick: function () {
-              const newName = input.value
+              const newName = input.value;
               _renameItemOnClick(renameItem, newName);
             }
           }]
@@ -799,147 +630,287 @@ function _showRenameForm() {
       }]
     }]
   }];
-  let modal = modalator.buildModal(config);
+  return config;
+}
+
+function _showForm(config) {
+  if (_modal) {
+    // remove any existing modal from DOM
+    _modal.remove();
+  }
+  // create modal
+  const modal = modalator.buildModal(config);
+  // display modal
   modal.show();
-  // store Modal in global object
-  Modal = modal;
+  // save modal in private variable for tracking state
+  _modal = modal;
+}
+
+function _addFile() {
+  const restApi = `${_fileExplorerConfig.api.add}/file`;
+  // get directory for adding files to
+  const dir = _getCurrentDirectory();
+  // define modal configuration
+  const config = _getAddFileFormConfig(restApi, dir);
+  _showForm(config);
+}
+
+function _addFolder() {
+  const config = _getAddFolderFormConfig();
+  _showForm(config);
+}
+
+function _delete() {
+  const config = _getDeleteFormConfig();
+  _showForm(config);
+}
+
+function _rename() {
+  const config = _getRenameFormConfig();
+  _showForm(config);
 }
 
 function _downloadFile() {
   // get state of tableator
-  let state = tableator.getState();
-  let onHoverRow = state.onHoverRow;
-  let filePath = onHoverRow.data.FILE_PATH;
-  let fileName = onHoverRow.data.NAME;
-  if (fileName && filePath) {
-    var link = document.createElement('a');
+  const state = tableator.getState();
+  const onHoverRow = state.onHoverRow;
+  const filePath = onHoverRow.data.FILE_PATH;
+  const fileName = onHoverRow.data.NAME;
+  const type = onHoverRow.data.ICON_TYPE;
+  if (fileName && filePath && type === 'file') {
+    const link = document.createElement('a');
     link.download = fileName;
-    link.href = `${fileExplorerConfig.api.download}${filePath}`;
+    link.href = `${_fileExplorerConfig.api.download}${filePath}`;
     link.click();
     link.remove();
   }
 }
 
-function _addFile() {
-  _showUploadForm();
-}
-
-function _addFolder() {
-  _showAddFolderForm();
-}
-
-function _delete() {
-  _showDeleteForm();
-}
-
-function _rename() {
-  _showRenameForm();
-}
-
-function _move() {
-
-}
-
-function _copy() {
-
-}
-
-function _paste() {
-
-}
-
 function _getContextMenu() {
   const options = {
     // div to apply custom context menu to
-    'div': fileExplorerConfig.ui.tableDiv,
+    div: _fileExplorerConfig.ui.tableDiv,
     // renderer for applying css and styles to entire context menu
-    'menuRenderer': null,
+    // 'menuRenderer': null,
     // renderer for applying css and styles to each row in the context menu
-    'itemRenderer': null,
+    // 'itemRenderer': null,
     // menu items and sub items
-    'items': {
-      'Download': _downloadFile,
-      'Add': {
-        'Folder': _addFolder,
-        'File': _addFile
+    items: {
+      Download: _downloadFile,
+      Add: {
+        Folder: _addFolder,
+        File: _addFile
       },
-      'Delete' : _delete,
-      'Rename' : _rename,
-      // 'Move' : _move,
-      // 'Copy' : _copy,
-      // 'Paste' : _paste,
+      Delete: _delete,
+      Rename: _rename,
     }
-  }
-  contextmenujs.init(options);
+  };
+  contextmenuator.init(options);
 }
 
-function _getTable(treeIndex, data) {
-  // update global tbale data tracking
-  fileExplorerTable = {
-    treeIndex: treeIndex,
+function _getFolderView(dataModelIndex, data) {
+  // capture state of folder view
+  _fileExplorerFolderView = {
+    dataModelIndex: dataModelIndex,
     data: data
   };
   // destroy existing table
-  let table = document.getElementById(fileExplorerConfig.ui.tableDiv);
+  const table = document.getElementById(_fileExplorerConfig.ui.tableDiv);
   while (table.firstChild) {
     table.removeChild(table.lastChild);
   }
   // construct new table
-  let options = {
-    div: fileExplorerConfig.ui.tableDiv,
+  const options = {
+    div: _fileExplorerConfig.ui.tableDiv,
     data: data,
-    renderer: null,
+    // renderer: null,
     headers: {
       displayNames: true,
       sourceNames: ['NAME', 'SIZE', 'LAST_EDIT_DATE'],
       names: ['Name', 'Size', 'Last Edit Date'],
       widths: ['50%', '25%', '25%'],
-      alignment: ["left", "center", "center"],
-      renderer: null
+      alignment: ['left', 'center', 'center'],
+      // renderer: null
     },
     rows: {
-      renderer: null,
+      // renderer: null,
       rowTypeIcons: 'filesystem'
     },
     cells: {
-      onClick: null,
+      // onClick: null,
       onDblClick: function (tr, td, rowNo, rowData) {
         // find position of filePath in tree data
-        let treePos = _findPositionInTree(rowData.FILE_PATH, fileExplorerData);
+        const treePos = _findPositionInTree(rowData.FILE_PATH, _fileExplorerDataModel);
         // update tree single & double clicked row
-        _updateTreeClickedItem(fileExplorerData, treePos);
+        _updateTreeClickedItem(treePos);
         // update breadcrumb menu
-        _reloadBreadCrumb(fileExplorerData[treePos], fileExplorerData);
+        _reloadBreadCrumb(_fileExplorerDataModel[treePos], _fileExplorerDataModel);
         // update directory
         if (rowData.ICON_TYPE === 'folder') {
           // get all children of current row
-          let children = _getChildren(fileExplorerData[treePos], treePos, fileExplorerData);
-          _getTable(treePos, _addEmptyRow(children, fileExplorerData[treePos].FILE_PATH));
+          const children = treeator.getChildren(treePos, _fileExplorerDataModel);
+          const folderData = _addEmptyRow(children, _fileExplorerDataModel[treePos].FILE_PATH);
+          _getFolderView(treePos, folderData);
         } else {
           // TO DO - Display a drawer or information panel on clicked item
         }
       },
-      onHover: null,
-      renderer: null
+      // onHover: null,
+      // renderer: null
     }
-  }
+  };
   tableator.init(options);
   _getContextMenu();
-  // _addDragSelect();
+}
+
+function _getFileFolderDetails(change) {
+  const o = {
+    oldFilePath: '',
+    newFilePath: '',
+    newName: '',
+  };
+  if (change.TYPE === 'folder') {
+    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FOLDER}`;
+    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FOLDER}`;
+    o.newName = change.NEW_FOLDER;
+  } else if (change.TYPE === 'file') {
+    o.oldFilePath = `/${change.OLD_DIR}/${change.OLD_FILE}`;
+    o.newFilePath = `/${change.NEW_DIR}/${change.NEW_FILE}`;
+    o.newName = change.NEW_FILE;
+  }
+  return o;
+}
+
+function _getUpdateRecord(change) {
+  const d = _getFileFolderDetails(change);
+  // determine position of item to update
+  const position = _findPositionInTree(d.oldFilePath, _fileExplorerDataModel);
+  // create change configuration for tree updates
+  return {
+    position: position,
+    // updates to data structure
+    updates: [
+      {
+        property: 'NAME',
+        value: d.newName
+      }, {
+        property: 'FILE_PATH',
+        value: d.newFilePath
+      }
+    ],
+    childUpdates: [
+      {
+        property: 'FILE_PATH',
+        findStartsWithString: d.oldFilePath,
+        replaceString: d.newFilePath
+      }
+    ],
+    // updates to user interface
+    htmlUpdates: [
+      {
+        column: 0,
+        value: d.newName
+      }
+    ]
+  };
+}
+
+function _getAddRecord(change, tableDepth, tableIndex) {
+  // create record to insert into interface at appropriate locations
+  const row = {
+    // calculate depth of row to insert
+    DATA_DEPTH: tableDepth + 1,
+    NAME: change.NAME,
+    ICON_TYPE: change.ICON_TYPE,
+    SIZE: change.SIZE,
+    LAST_EDIT_DATE: change.LAST_EDIT_DATE,
+    FILE_PATH: change.FILE_PATH
+  };
+  // determine position to insert new record into tree
+  const position = treeator.findLastChild(tableIndex || 0, _fileExplorerDataModel);
+  // create change configuration for tree updates
+  return {
+    position: position + 1,
+    data: row
+  };
+}
+
+function _getDeleteRecord(change) {
+  // determine position of item to delete
+  const position = _findPositionInTree(change.FILE_PATH, _fileExplorerDataModel);
+  // create change configuration for tree updates
+  return {
+    position: position
+  };
+}
+
+function _updateTree(changeType, records) {
+  if (changeType === 'add') {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.appendTreeRecords(records);
+  } else if (changeType === 'delete') {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.removeTreeRecords(records);
+  } else if (changeType === 'update') {
+    // add elements to tree and push passed updates to tree data model.
+    treeator.updateTreeRecords(records);
+  }
+}
+
+function _updateUserInterface(changes, changeType) {
+  const records = [];
+  const tableIndex = _fileExplorerFolderView.dataModelIndex;
+  let tableDepth = -1;
+  // check if a folder has been loaded
+  if (tableIndex || tableIndex === 0) {
+    tableDepth = _fileExplorerDataModel[tableIndex].DATA_DEPTH;
+  }
+  // loop through list of changes returned by server
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
+    let record;
+    if (changeType === 'add') {
+      // prepare data for updating the file tree
+      record = _getAddRecord(change, tableDepth, tableIndex);
+      records.push(record);
+      // update table data model so that table is refreshed with correct information on rebuild
+      // push to second last position in table so it appears above the "add new row" placeholder
+      _fileExplorerFolderView.data.splice(_fileExplorerFolderView.data.length - 1, 0, record.data);
+    } else if (changeType === 'delete') {
+      // prepare data for updating the file tree
+      record = _getDeleteRecord(change);
+      records.push(record);
+      // find position of record in folder view
+      const index = _findPositionInTree(change.FILE_PATH, _fileExplorerFolderView.data);
+      // remove record from index in folder view
+      _fileExplorerFolderView.data.splice(index, 1);
+    } else if (changeType === 'update') {
+      // prepare data for updating the file tree
+      record = _getUpdateRecord(change);
+      records.push(record);
+      // update record details
+      const d = _getFileFolderDetails(change);
+      const oldFilePath = d.oldFilePath;
+      const newFilePath = d.newFilePath;
+      const newName = d.newName;
+      const index = _findPositionInTree(oldFilePath, _fileExplorerFolderView.data);
+      const updateRecord = _fileExplorerFolderView.data[index];
+      updateRecord.NAME = newName;
+      updateRecord.FILE_PATH = newFilePath;
+    }
+  }
+  // total rebuild of table
+  _getFolderView(tableIndex, _fileExplorerFolderView.data);
+  // update existing tree
+  _updateTree(changeType, records);
 }
 
 function _getTree(data) {
-  // destroy existing tree
-  // TO DO - Move to treator init function
-  // let e = document.getElementById(fileExplorerConfig.ui.treeDiv);
-  // while (e.firstChild) {
-  //   e.removeChild(e.lastChild);
-  // }
   const treeOptions = {
     tree: {
-      div: fileExplorerConfig.ui.treeDiv,
+      div: _fileExplorerConfig.ui.treeDiv,
       data: data,
-      renderer: null,
+      // renderer: null,
       columns: {
         sourceNames: ['NAME'],
         newNames: ['name'],
@@ -947,78 +918,88 @@ function _getTree(data) {
         alignment: ['left']
       },
       rows: {
-        collapseIcon: null,
-        expandIcon: null,
+        // collapseIcon: null,
+        // expandIcon: null,
         rowTypeIcons: 'filesystem',
-        renderer: null,
-        onClick: null,
+        // renderer: null,
+        // onClick: null,
         onDblClick: function (tr, row, pos) {
           _reloadBreadCrumb(row, data);
-          _reloadTable(row, pos, data, row);
+          _reloadTable(row, pos, data);
         },
-        onHover: null,
-        onHoverOut: null
+        // onHover: null,
+        // onHoverOut: null
       },
       cells: {
-        renderer: null
+        // renderer: null
       }
     },
     search: {
-      div: fileExplorerConfig.ui.treeSearchDiv
+      div: _fileExplorerConfig.ui.treeSearchDiv
     }
-  }
+  };
   treeator.init(treeOptions);
   return treeOptions;
 }
 
-function _getBreadcrumb(items) {
-  // destroy current breadcrumb
-  let bc = document.getElementById(fileExplorerConfig.ui.breadcrumbDiv);
-  while (bc.firstChild) {
-    bc.removeChild(bc.lastChild);
+function _addHighlight(tdElement, filter) {
+  let t = (tdElement.innerText || tdElement.textContent);
+  // flags... ig
+  // i = case insensitive
+  // g = global. Search for ALL matches in string
+  let outerHtml = '';
+  if (tdElement.firstChild && tdElement.firstChild.outerHTML) {
+    outerHtml = tdElement.firstChild.outerHTML;
+    // remove chevron from text
+    t = t.replace(tdElement.firstChild.innerText, '');
   }
-  // construct new breadcrumb
-  const breadCrumbOptions = {
-    'div': fileExplorerConfig.ui.breadcrumbDiv,
-    'breadcrumbs': {
-      'items': items
-    }
+  if (filter !== '') {
+    tdElement.innerHTML = outerHtml + t.replace(new RegExp(`(${filter})`, 'ig'), '<span style="background-color: yellow;">$1</span>');
+  } else {
+    tdElement.innerHTML = outerHtml + t;
   }
-  breadcrumb.init(breadCrumbOptions);
 }
 
-function _reloadBreadCrumb(row, data) {
-  // create breadcrumb
-  const arr = row.FILE_PATH.split('/');
-  let items = [];
-  for (let i = 0; i < arr.length; i++) {
-    const row = {
-      'item': arr[i],
-      'onClick': function (li, items, position) {
-        // get filePath to lookup in tree array
-        let filePath = _getBreadCrumbFilePath(li, items, position);
-        // find position of filePath in tree data
-        let pos = _findPositionInTree(filePath, data);
-        // Update tree
-        _updateTreeClickedItem(data, pos);
-        // Update table
-        _reloadTable(data[pos], pos, data, row);
+function _searchDirectory(tableDivId, searchDivId) {
+  // get filter data
+  const input = document.getElementById(searchDivId);
+  const filter = input.value.toUpperCase();
+  // get table rows to search
+  const table = document.getElementById(tableDivId);
+  const trs = table.getElementsByTagName('tr');
+  // Loop through all table rows, and hide those who don't match the search query
+  for (let i = 0; i < trs.length; i++) {
+    let found = false;
+    // get all table cells
+    const tds = trs[i].getElementsByTagName('td');
+    // loop through all table cells
+    for (let n = 0; n < tds.length; n++) {
+      const text = (tds[n].innerText || tds[n].textContent);
+      if (text.toUpperCase().indexOf(filter) > -1) {
+        found = true;
+        _addHighlight(tds[n], filter);
+      } else {
+        // strip out highlighting from cells where no match was found
+        // tds[n].innerHTML = text;
       }
     }
-    items.push(row);
+    // hide / display row
+    if (found) {
+      trs[i].style.display = '';
+    } else {
+      trs[i].style.display = 'none';
+    }
   }
-  _getBreadcrumb(items);
 }
 
 function _getToolbarSearch() {
   const toolbarSearchOptions = {
-    div: fileExplorerConfig.ui.tableSearchDiv,
+    div: _fileExplorerConfig.ui.tableSearchDiv,
     // Custom renderer required to override default name of element so that the
     // treeator search has a unique element to target
     renderer: function inputRenderer() {
       const e = {};
-      e.id = `${fileExplorerConfig.ui.tableSearchDiv}_input`;
-      // e.className = 'inputator-container__input';
+      e.id = `${_fileExplorerConfig.ui.tableSearchDiv}_input`;
       e.name = 'search';
       e.placeholder = 'Search Folder';
       e.style = {
@@ -1034,28 +1015,27 @@ function _getToolbarSearch() {
       };
       return e;
     },
-    onClick: null,
-    onFocusOut: null,
-    onHover: null,
+    // onClick: null,
+    // onFocusOut: null,
+    // onHover: null,
     onKeyUp: function () {
-      _searchDirectory();
+      _searchDirectory(_fileExplorerConfig.ui.tableDiv, `${_fileExplorerConfig.ui.tableSearchDiv}_input`);
     },
     icon: {
-      innerHTML: null,
-      renderer: null
+      // innerHTML: null,
+      // renderer: null
     }
-  }
+  };
   inputator.init(toolbarSearchOptions);
 }
 
 function _getTreeSearch(treeOptions) {
   const treeSearchOptions = {
-    div: fileExplorerConfig.ui.treeSearchDiv,
+    div: _fileExplorerConfig.ui.treeSearchDiv,
     renderer: function inputRenderer() {
       const e = {};
       // give input a unique name to avoid conflicts with other search boxes
-      e.id = `${fileExplorerConfig.ui.treeSearchDiv}_input`;
-      // e.className = 'inputator-container__input';
+      e.id = `${_fileExplorerConfig.ui.treeSearchDiv}_input`;
       e.name = 'search';
       e.placeholder = 'Search Directory';
       e.style = {
@@ -1071,183 +1051,49 @@ function _getTreeSearch(treeOptions) {
       };
       return e;
     },
-    onClick: null,
-    onFocusOut: null,
-    onHover: null,
+    // onClick: null,
+    // onFocusOut: null,
+    // onHover: null,
     onKeyUp: function () {
-      treeator.searchTable(`${fileExplorerConfig.ui.treeSearchDiv}_input`, 'treeator-tree', fileExplorerConfig.ui.treeDiv, treeOptions)
+      treeator.searchTable(`${_fileExplorerConfig.ui.treeSearchDiv}_input`, 'treeator-tree', _fileExplorerConfig.ui.treeDiv, treeOptions);
     },
     icon: {
-      innerHTML: null,
-      renderer: null
+      // innerHTML: null,
+      // renderer: null
     }
-  }
+  };
   inputator.init(treeSearchOptions);
 }
-
-function _getBreadCrumbFilePath(li, items, position) {
-  let filePath = '';
-  for (let i = 0; i <= position; i++) {
-    if (i === position) {
-      filePath = filePath + items[i].item;
-    } else {
-      filePath = filePath + items[i].item + '/';
-    }
-  }
-  return filePath;
-}
-
-function _updateTreeClickedItem(data, pos) {
-  // update tree single & double clicked rows
-  const table = document.getElementById('treeator-tree');
-  const tr = table.getElementsByTagName('tr');
-  treeator.onClickDefault(tr[pos]);
-  treeator.onDblClickDefault(tr[pos]);
-}
-
-function _reloadTable(matchedRow, pos, data, row) {
-  if (matchedRow.ICON_TYPE === 'folder') {
-    // get all children of current row
-    let children = _getChildren(data[pos], pos, data);
-    _getTable(pos, _addEmptyRow(children, data[pos].FILE_PATH));
-  } else {
-    let parentPos = _findParent(pos, data);
-    // get all children of current row
-    let children = _getChildren(data[parentPos], parentPos, data);
-    _getTable(pos, _addEmptyRow(children, data[parentPos].FILE_PATH));
-  }
-}
-
-function _findPositionInTree(filePath, data) {
-  let pos;
-  for (let i = 0; i < data.length; i++) {
-    if (data[i].FILE_PATH === filePath) {
-      pos = i;
-      return pos;
-    }
-  }
-  return pos;
-}
-
-function _getChildren(row, pos, data) {
-  let depth = row.DATA_DEPTH;
-  let children = [];
-  for (let i = pos + 1; i < data.length; i++) {
-    // end loop - no more direct children found
-    if (data[i].DATA_DEPTH <= depth) {
-      break;
-    } else if (data[i].DATA_DEPTH === depth + 1) {
-      children.push(data[i]);
-    }
-  }
-  return children;
-}
-
-function _findParent(pos, data) {
-  for (let i = pos - 1; i > -1; i--) {
-    if (data[i].ICON_TYPE === 'folder' && data[i].DATA_DEPTH === data[pos].DATA_DEPTH - 1) {
-      return i
-    }
-  }
-  return -1;
-}
-
-function _addHighlight(tdElement, filter) {
-  let t = (tdElement.innerText || tdElement.textContent);
-  // flags... ig
-  // i = case insensitive
-  // g = global. Search for ALL matches in string
-  tdElement.innerHTML = t.replace(new RegExp(`(${filter})`, 'ig'), '<span style="background-color: yellow;">$1</span>');
-}
-
-function _searchDirectory() {
-  const div = document.getElementById(fileExplorerConfig.ui.tableDiv);
-  const trs = div.getElementsByTagName('tr');
-  const input = document.getElementById(`${fileExplorerConfig.ui.tableSearchDiv}_input`);
-  const filter = input.value.toUpperCase();
-  // Loop through all table rows, and hide those who don't match the search query
-  for (let i = 0; i < trs.length; i++) {
-    let rowMatch = false;
-    // get all table cells
-    const tds = trs[i].getElementsByTagName('td');
-    // loop through all table cells
-    for (let n = 0; n < tds.length; n++) {
-      const text = (tds[n].innerText || tds[n].textContent);
-      if (text.toUpperCase().indexOf(filter) > -1) {
-        rowMatch = true;
-        _addHighlight(tds[n], filter);
-      } else {
-        // strip out highlighting from cells where no match was found
-        tds[n].innerHTML = text;
-      }
-    }
-    // hide / display row
-    if (rowMatch) {
-      trs[i].style.display = '';
-    } else {
-      trs[i].style.display = 'none';
-    }
-  }
-}
-
-// function _addDragSelect() {
-//   const ds = new DragSelect({ // eslint-disable-line no-undef
-//     selectables: document.getElementsByClassName('table-table__row'),
-//     area: document.getElementById(fileExplorerConfig.ui.tableDiv),
-//     callback: function cb(elements) { // eslint-disable-line no-unused-vars
-//       // do something
-//     }
-//   });
-//   return ds;
-// }
 
 function _getFileSystemData() {
   // define request config
   const options = {
-    method: 'POST'
-    , url: fileExplorerConfig.api.directory
-    , headers: {
-      'Accept': 'application/json',
+    method: 'GET',
+    url: _fileExplorerConfig.api.directory,
+    headers: {
       'Content-Type': 'application/json'
     }
-    , payload: JSON.stringify([{
-      folder: 'facilities'
-    }])
-  }
+  };
   // send ajax request to server
-  return httpComms.sendRequest(options);
+  return http.sendRequest(options);
 }
 
-function _addEmptyRow(arr, file_path) {
-  // get empty row of data to always be displayed to user
-  const row = {
-    DATA_DEPTH: '',
-    ICON_TYPE: '',
-    NAME: 'add new item',
-    SIZE: '',
-    LAST_EDIT_DATE: '',
-    FILE_PATH: file_path
-  };
-  // push row to array
-  arr.push(row);
-  return arr;
-}
 /* ============================== Public Methods ============================ */
 
 function init(config) {
   // sets functions containing object property
-  fileExplorerConfig = config;
+  _fileExplorerConfig = config;
   // get file system data for navigating
   // store data in global object so it can be shared between all modules
   _getFileSystemData().then(function (res) {
-    let data = JSON.parse(res);
-    fileExplorerData = data[0].data;
+    const data = JSON.parse(res);
+    _fileExplorerDataModel = data[0].data;
     // construct tree view of data
-    let treeOptions = _getTree(fileExplorerData);
+    const treeOptions = _getTree(_fileExplorerDataModel);
     _getBreadcrumb([]);
     _getToolbarSearch();
     _getTreeSearch(treeOptions);
-    _getTable(null, _addEmptyRow([], fileExplorerData[0].FILE_PATH));
+    _getFolderView(null, _addEmptyRow([], _fileExplorerDataModel[0].FILE_PATH));
   });
 }
 

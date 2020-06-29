@@ -117,11 +117,38 @@
       directory: '/api/ftp/read/folder',
       // download files and folders - expected that the files under this location are served staticly.
       download: '/test/express/assets',
-      // add files and folders - expected that api handles add/{file||folder}/{name}
+      // add files and folders - expected that api handles add/{file||folder}
+      // add/file expects multipart form data with the upload directory specified as a header
+      // add/folder expects application/json encoded data as follows:
+      // [{
+      //  dir: 'some directory',
+      //  folder: 'some folder'
+      // }]
       add: '/api/ftp/add',
-      // delete files and folders - expected that api handles delete/{file||folder}/{name}
+      // delete files and folders - expected that api handles delete/{file||folder}
+      // delete/{file||folder} expects application/json encoded data as follows:
+      // [{
+      //  dir: 'some directory',
+      //  file||folder: 'some file or folder'
+      // }]
       delete: '/api/ftp/delete',
-      // update (rename) files and folders - expected that api handles update/{file||folder}/{name}
+      // update (rename) files and folders - expected that api handles update/{file||folder}
+      // update/file expects application/json encoded data as follows:
+      // [{
+      //  NEW_DIR: "some new directory location"
+      //  NEW_FILE: "some new file name"
+      //  OLD_DIR: "current directory"
+      //  OLD_FILE: "current file name"
+      //  TYPE: "file"
+      // }]
+      // update/folder expects application/json encoded data as follows:
+      // [{
+      //  NEW_DIR: "some new directory location"
+      //  NEW_FOLDER: "some new folder name"
+      //  OLD_DIR: "current directory"
+      //  OLD_FOLDER: "current folder name"
+      //  TYPE: "folder"
+      // }]
       update: '/api/ftp/update',
     }
   }
