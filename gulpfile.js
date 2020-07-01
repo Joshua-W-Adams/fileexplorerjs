@@ -32,30 +32,29 @@ const pkg = require('./package.json');
 
 const settings = {
 
-	dependancies: {
-		// list of dependancies to REMOVE from the compiled js files
+  dependancies: {
+    // list of dependancies to REMOVE from the compiled js files
     js: {
-			// property names must match the x parameter in the following statement:
-			// import * as something 'from' x
-			// property descriptions define the name that will be exported to compiled
-			// js code
-			"some-module-1": "someModule1",
-		 "./dist/some-module-2.js": "someModule2"
-	  }
-		// list of dependancies to ADD to the compiled css files
-		, css: []   // 'dep1_location/dep1.css', 'etc.'
-	}
+      // property names must match the x parameter in the following statement:
+      // import * as something 'from' x
+      // property descriptions define the name that will be exported to compiled
+      // js code
+      // "some-module-1": "someModule1",
+      // "./dist/some-module-2.js": "someModule2"
+    }
+    // list of dependancies to ADD to the compiled css files
+    , css: []   // 'dep1_location/dep1.css', 'etc.'
+  }
 
 }
 
 const paths = {
-	inputs: {
-		index: "./src/js/module.js"
-    // , js: ["./src/js/**/*.js", "./test/**/*.js"]
+  inputs: {
+    index: "./src/js/module.js"
     , js: ["./src/js/**/*.js"]
-		, sass: ["./src/sass/**/*.scss"]
-	}
-	, outputs: "dist/"
+    , sass: ["./src/sass/**/*.scss"]
+  }
+  , outputs: "dist/"
 }
 
 /* ================================== Methods =============================== */
@@ -89,36 +88,37 @@ function getNodemonServer () {
 }
 
 function getWebpackCnf (name) {
-	return {
-	  entry: {
-			[name]: paths.inputs.index
-	  },
-	  devtool: "source-map",
-	  output: {
-	    filename: "[name].js",
-			libraryTarget: 'var',
+  return {
+    entry: {
+      [name]: paths.inputs.index
+    },
+    devtool: "source-map",
+    output: {
+      filename: "[name].js",
+      libraryTarget: 'var',
       library: pkg.name.replace('-', ''),
-	  },
-		externals: {},
-	  optimization: {
-	    minimize: false
-	  },
-		mode: "production",
-		module: {
-		  rules: [
-		    {
-		      test: /\.m?js$/,
-		      exclude: /(node_modules|bower_components)/,
-		      use: {
-		        loader: 'babel-loader',
-		        options: {
-		          presets: ['@babel/preset-env']
-		        }
-		      }
-		    }
-		  ]
-		}
-	}
+    },
+    // exclude dependacies from the webpack output by listing them here
+    externals: {},
+    optimization: {
+      minimize: false
+    },
+    mode: "production",
+    module: {
+      rules: [
+        {
+          test: /\.m?js$/,
+          exclude: /(node_modules|bower_components)/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-env']
+            }
+          }
+        }
+      ]
+    }
+  }
 }
 
 /**
@@ -135,7 +135,7 @@ function compileScss (arr, name) {
 
     // output non-minified CSS file
     .pipe(sass().on('error', sass.logError))
-		.pipe(rename(name))
+    .pipe(rename(name))
     .pipe(gulp.dest(paths.outputs))
 
     // output the minified version
@@ -177,54 +177,66 @@ function sassLint (arr, done) {
         {formatter: 'string', console: true}
       ]
     })).on('error', function (err) {
-			console.log(err);
-			// completes task but prevents gulp moving to next task until errors are
-			// resolved
-			done(-1);
-		});
+      console.log(err);
+      // completes task but prevents gulp moving to next task until errors are
+      // resolved
+      done(-1);
+    });
 }
 
 /* =================================== Tasks ================================ */
 
 gulp.task('js-no-dep', function (done) {
   var entry = paths.inputs.index,
-			cnf = getWebpackCnf(pkg.name);
-	cnf.externals = settings.dependancies.js;
+      cnf = getWebpackCnf(pkg.name);
+  cnf.externals = settings.dependancies.js;
   return compileJs(entry, cnf, done);
 })
 
 gulp.task('js-min-no-dep', function (done) {
   var entry = paths.inputs.index,
-			cnf = getWebpackCnf(pkg.name + ".min");
-	cnf.externals = settings.dependancies.js;
-	cnf.optimization = { minimize: true };
+      cnf = getWebpackCnf(pkg.name + ".min");
+  cnf.externals = settings.dependancies.js;
+  cnf.optimization = { minimize: true };
   return compileJs(entry, cnf, done);
 })
 
 gulp.task('js-with-dep', function (done) {
   var entry = paths.inputs.index,
-			cnf = getWebpackCnf(pkg.name + ".full");
-	cnf.externals = {
-		"some-module-1": "someModule1",
-		"./dist/some-module-2.js": "someModule2"
-	};
-  return compileJs(entry, cnf, done);
+      cnf = getWebpackCnf(pkg.name + ".full");
+  cnf.externals = {
+    "some-module-1": "someModule1",
+    "./dist/some-module-2.js": "someModule2"
+  };
+  // check for empty object (no dependancies)
+  if (Object.keys(settings.dependancies.js).length === 0 && settings.dependancies.js.constructor === Object) {
+    // No dependancies in package. Call done and end task.
+    done();
+  } else {
+    return compileJs(entry, cnf, done);
+  }
 })
 
 gulp.task('js-min-with-dep', function (done) {
   var entry = paths.inputs.index,
-			cnf = getWebpackCnf(pkg.name + ".full.min");
-	cnf.externals = {
-		"some-module-1": "someModule1",
-		"./dist/some-module-2.js": "someModule2"
-	};
-	cnf.optimization = { minimize: true };
-  return compileJs(entry, cnf, done);
+      cnf = getWebpackCnf(pkg.name + ".full.min");
+  cnf.externals = {
+    "some-module-1": "someModule1",
+    "./dist/some-module-2.js": "someModule2"
+  };
+  cnf.optimization = { minimize: true };
+  // check for empty object (no dependancies)
+  if (Object.keys(settings.dependancies.js).length === 0 && settings.dependancies.js.constructor === Object) {
+    // No dependancies in package. Call done and end task.
+    done();
+  } else {
+    return compileJs(entry, cnf, done);
+  }
 })
 
 gulp.task('css-no-dep', function (done) {
   var arr = paths.inputs.sass,
-			name = pkg.name + '.css';
+      name = pkg.name + '.css';
   return compileScss(arr, name);
 });
 
@@ -247,7 +259,17 @@ gulp.task('sasslint', function (done) {
 });
 
 gulp.task('serve', function (done) {
-	 nodemonServer = getNodemonServer();
+  nodemonServer = getNodemonServer();
+})
+
+gulp.task('lint', function (done) {
+  gulp.watch(paths.inputs.sass, gulp.series('sasslint'));
+  gulp.watch(paths.inputs.js, gulp.series('jslint'));
+})
+
+gulp.task('build', function (done) {
+  gulp.watch(paths.inputs.sass, gulp.series('css-no-dep', 'css-with-dep'));
+  gulp.watch(paths.inputs.js, gulp.series('js-no-dep', 'js-min-no-dep', 'js-with-dep', 'js-min-with-dep'));
 })
 
 /* ================================ Export Tasks ============================ */
@@ -256,7 +278,7 @@ gulp.task('serve', function (done) {
  * Define default task that can be called by just running `gulp` from cli
  */
 
- exports.default = function () {
-   gulp.watch(paths.inputs.sass, gulp.series('sasslint', 'css-no-dep', 'css-with-dep'));
-   gulp.watch(paths.inputs.js, gulp.series('jslint', 'js-no-dep', 'js-min-no-dep', 'js-with-dep', 'js-min-with-dep'));
- };
+exports.default = function () {
+  console.log('no default task defined');
+};
+ 

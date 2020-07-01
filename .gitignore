@@ -1,8 +1,8 @@
 # Ignore these files
 
 node_modules/
-dist/
+# dist/
 
 # But not these files
 
-!dist/*.txt
+# !dist/*.txt
