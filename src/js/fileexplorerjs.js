@@ -7,18 +7,15 @@
 /* ============================== Import Modules ============================ */
 
 // import node modules
-import breadcrumb from '/node_modules/breadcrumbjs/src/js/module.js';
-import inputator from '/node_modules/inputator/src/js/module.js';
-import treeator from '/node_modules/treeator/src/js/module.js';
-import tableator from '/node_modules/tableator/src/js/module.js';
-import contextmenuator from '/node_modules/contextmenuator/src/js/module.js';
-import modalator from '/node_modules/modalator/src/js/modalator.js';
+let breadcrumbjs = require('breadcrumbjs');
+let inputator = require('inputator');
+let treeator = require('treeator');
+let tableator = require('tableator');
+let contextmenuator = require('contextmenuator');
+let modalator = require('modalator');
 
 // import local modules
-import http from '/src/js/http.js';
-
-// import test modules
-// import tests from '/src/js/tests.js';
+let http = require('./http.js');
 
 /* ================================ Variables =============================== */
 
@@ -138,7 +135,7 @@ function _getBreadcrumb(items) {
       items: items
     }
   };
-  breadcrumb.init(breadCrumbOptions);
+  breadcrumbjs.init(breadCrumbOptions);
 }
 
 function _reloadTable(matchedRow, pos, data) {
@@ -1049,6 +1046,6 @@ function init(config) {
 
 /* =========================== Export Public APIs =========================== */
 
-export default {
+module.exports = {
   init
 };

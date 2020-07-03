@@ -91,9 +91,8 @@
     </div>
   </body>
 </html>
-<!-- <script defer src="/node_modules/dragselect/dist/ds.min.js"></script> -->
+<script defer src="/dist/fileexplorerjs.full.js"></script>
 <script type="module">
-  import fileexplorerjs from '/src/js/module.js';
   const config = {
     // user interface configuration
     ui: {
@@ -152,5 +151,6 @@
       update: '/api/ftp/update',
     }
   }
+  console.log(fileexplorerjs);
   fileexplorerjs.init(config);
 </script>

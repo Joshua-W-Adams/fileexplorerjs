@@ -25,21 +25,11 @@ A pure JavaScript component for creating a file explorer interface.
 npm i fileexplorerjs --save
 ```
 
-2. Either import into a Javascript Module OR add as a resource.
+2. Add as a resource.
 
-    1. Import
-
-    ```html
-    <script type="module">
-      import fileexplorerjs from './<location_of_installation>/fileexplorerjs.js';
-    </script>
-    ```
-
-    2. Resource
-
-    ```html
-    <script type="text/javascript" src="/<location_of_installation>/fileexplorerjs.full.js"></script>
-    ```
+  ```html
+  <script type="text/javascript" src="/<location_of_installation>/fileexplorerjs.full.min.js"></script>
+  ```
 
 ### Useage
 
@@ -47,8 +37,8 @@ To generate a fileexplorer view you must first specify a config object then pass
 See example below:
 
 ```html
+<script type="text/javascript" src="/<location_of_installation>/fileexplorerjs.full.min.js"></script>
 <script type="module">
-  import fileexplorerjs from '/src/js/module.js';
   const config = {
     // user interface configuration
     ui: {

@@ -1,6 +1,6 @@
 {
   "name": "fileexplorerjs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Creates file explorer user interface component",
   "engines": {
     "node": "10.x"
@@ -37,15 +37,15 @@
     "webpack-stream": "^5.2.1"
   },
   "dependencies": {
-    "breadcrumbjs": "^1.0.3",
+    "breadcrumbjs": "^1.0.4",
     "connect-busboy": "0.0.2",
-    "contextmenuator": "^1.0.0",
+    "contextmenuator": "^1.0.1",
     "express": "^4.17.1",
     "gulp-nodemon": "^2.5.0",
-    "inputator": "^1.0.0",
-    "modalator": "^2.1.0",
+    "inputator": "^1.0.1",
+    "modalator": "^2.1.3",
     "nodemon": "^2.0.3",
-    "tableator": "^1.3.0",
-    "treeator": "^1.4.2"
+    "tableator": "^1.3.1",
+    "treeator": "^1.4.3"
   }
 }

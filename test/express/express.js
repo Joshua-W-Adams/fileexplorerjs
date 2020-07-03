@@ -94,6 +94,8 @@ function init() {
   return httpServer;
 }
 
+init();
+
 /* =========================== Export Public APIs =========================== */
 
 module.exports = {

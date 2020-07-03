@@ -58,6 +58,6 @@ function sendRequest(options) {
 
 /* =========================== Export Public APIs =========================== */
 
-export default {
+module.exports = {
   sendRequest
 };
