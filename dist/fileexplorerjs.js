@@ -1153,10 +1153,9 @@ function _getTree(data) {
       }
     },
     search: {
-      div: _fileExplorerConfig.ui.treeSearchDiv
+      div: "".concat(_fileExplorerConfig.ui.treeSearchDiv, "_input")
     }
   };
-  treeator.init(treeOptions);
   return treeOptions;
 }
 
@@ -1202,7 +1201,9 @@ function _getTreeSearch(treeOptions) {
     renderer: function inputRenderer() {
       var e = {}; // give input a unique name to avoid conflicts with other search boxes
 
-      e.id = "".concat(_fileExplorerConfig.ui.treeSearchDiv, "_input");
+      e.id = "".concat(_fileExplorerConfig.ui.treeSearchDiv, "_input"); // set value of input so file tree loads with default filter
+
+      e.value = _fileExplorerConfig.defaultTreeSearchValue || '';
       e.name = 'search';
       e.placeholder = 'Search Directory';
       e.style = {
@@ -1261,7 +1262,10 @@ function init(config) {
 
     _getToolbarSearch();
 
-    _getTreeSearch(treeOptions);
+    _getTreeSearch(treeOptions); // tree must be initialised after input so it pre loads with a filter if applicable
+
+
+    treeator.init(treeOptions);
 
     _getFolderView(null, _addEmptyRow([], _fileExplorerDataModel[0].FILE_PATH));
   });

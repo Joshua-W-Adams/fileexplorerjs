@@ -1,6 +1,6 @@
 {
   "name": "fileexplorerjs",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Creates file explorer user interface component",
   "engines": {
     "node": "10.x"

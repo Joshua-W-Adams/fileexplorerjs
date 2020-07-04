@@ -48,6 +48,8 @@ See example below:
       treeDiv: 'name of div to load file tree into',
       tableDiv: 'name of div to load folder view into'
     },
+    // specify filter to apply to file tree on load
+    defaultTreeSearchValue: 'some search value',
     // api configuration for connecting functions to server
     api: {
       // route to generate file system directory. Must contain json data formatted as follows:
